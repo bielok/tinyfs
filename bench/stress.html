@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>tinyfs stress test</title></head>
+<body>
+<pre id="output"></pre>
+<pre id="summary"></pre>
+<script src="/dist/tinyfs.umd.js"></script>
+<script src="/dist/bench.umd.js"></script>
+<script>
+(async () => {
+    const { TinyFS } = window.tinyfs;
+    const bench  = window.bench;
+
+    const tinyfs = await TinyFS.create("tinyfs");
+
+    const latency    = await bench.runLatencyBenchmarks(tinyfs);
+    const throughput = await bench.runThroughputBenchmarks(tinyfs);
+
+    document.getElementById("output").textContent =
+        bench.printLatencyTable(latency) + "\n" + bench.printThroughputTable(throughput);
+    document.getElementById("summary").textContent = bench.printSummary(latency, throughput);
+
+    await bench.cleanup(tinyfs, {
+        deleteDatabase: async (name) => {
+            tinyfs.shutdown();
+            await new Promise((res, rej) => {
+                const r = indexedDB.deleteDatabase(name);
+                r.onsuccess = () => res();
+                r.onerror   = () => rej(r.error);
+            });
+        },
+    }, "tinyfs");
+
+    window.__DONE__ = true;
+})();
+</script>
+</body>
+</html>

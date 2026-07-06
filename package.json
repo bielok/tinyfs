@@ -1,0 +1,53 @@
+{
+  "name": "tinyfs",
+  "version": "1.0.0",
+  "description": "A well-established in-browser filesystem built on IndexedDB.",
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bielok/tinyfs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bielok/tinyfs/issues"
+  },
+  "homepage": "https://github.com/bielok/tinyfs#readme",
+  "keywords": [
+    "filesystem",
+    "indexeddb",
+    "browser",
+    "storage",
+    "inode",
+    "fuse"
+  ],
+  "type": "module",
+  "main": "./dist/tinyfs.cjs",
+  "module": "./dist/tinyfs.esm.js",
+  "types": "./dist/tinyfs.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/tinyfs.d.ts",
+      "import": "./dist/tinyfs.esm.js",
+      "require": "./dist/tinyfs.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "bun test --timeout 30000",
+    "typecheck": "tsc --noEmit",
+    "fuzz": "bun run tests/fuzz_run.ts",
+    "build": "bun run scripts/build.ts",
+    "bench": "bun run scripts/stress.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "fake-indexeddb": "^6.2.5",
+    "puppeteer-core": "^25.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
