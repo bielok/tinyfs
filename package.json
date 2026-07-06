@@ -1,8 +1,8 @@
 {
-  "name": "tinyfs",
-  "version": "1.0.0",
-  "description": "A well-established in-browser filesystem built on IndexedDB.",
-  "license": "Unlicense",
+  "name": "@bielok/tinyfs",
+  "version": "1.0.1",
+  "description": "An in-browser filesystem built on IndexedDB.",
+  "license": "Public Domain",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bielok/tinyfs.git"

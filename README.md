@@ -5,8 +5,7 @@
 
 *An in-browser filesystem built on IndexedDB.*
 
-> [!NOTE]
-> This is a bit of an experimental idea, let me know if you find it useful.
+> Hey there! This is a bit of an experimental idea, let me know if you find it useful.
 
 English | [简体中文](./docs/readme/zh-CN.md) | [繁體中文](./docs/readme/zh-TW.md) | [日本語](./docs/readme/ja-JP.md) | [한국어](./docs/readme/ko-KR.md) | [Español](./docs/readme/es-ES.md) | [Русский](./docs/readme/ru-RU.md)
 
@@ -34,7 +33,7 @@ blocks.
 ## Installation
 
 ```bash
-> npm install tinyfs
+> npm install @bielok/tinyfs
 ```
 
 <details>
