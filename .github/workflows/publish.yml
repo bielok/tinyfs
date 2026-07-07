@@ -31,4 +31,7 @@ jobs:
           node-version: '22'
           registry-url: https://registry.npmjs.org
 
+      # npm 11.5.1+ required for OIDC auto-detection.
+      - run: npm install -g npm@latest
+
       - run: npm publish --access public
