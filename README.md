@@ -1,6 +1,7 @@
 ![TinyFS](.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](.github/tinyfs_dark.svg#gh-dark-mode-only)
 
+![npm downloads](https://img.shields.io/npm/d18m/@bielok/tinyfs.svg?label=npm%20downloads&color=green)
 ![Made in Buenos Aires](.github/madein.svg)
 
 *An in-browser filesystem built on IndexedDB.*
@@ -33,59 +34,15 @@ blocks.
 ## Installation
 
 ```bash
-> npm install @bielok/tinyfs
+$ npm install @bielok/tinyfs
 ```
-
-<details>
-<summary>Installing with other Package Managers and Runtimes</summary>
-
-### Installing from GitHub
-
-```bash
-> npm install bielok/tinyfs
-```
-
-See [npm install documentation](https://docs.npmjs.com/cli/v8/commands/npm-install).
-
-### Installing with pnpm
-
-```bash
-> pnpm install tinyfs
-```
-
-See [pnpm install documentation](https://pnpm.io/cli/install).
-
-### Installing with yarn
-
-```bash
-> yarn add tinyfs
-```
-
-See [yarn add documentation](https://classic.yarnpkg.com/lang/en/docs/cli/add/).
-
-### Installing with bun
-
-```bash
-> bun add tinyfs
-```
-
-See [bun add documentation](https://bun.com/docs/pm/cli/add).
-
-### Installing with deno
-
-```bash
-> deno install tinyfs
-```
-
-See [deno install documentation](https://docs.deno.com/runtime/reference/cli/install/).
-</details>
 
 ## Usage
 
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -93,7 +50,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -103,17 +60,21 @@ async function main() {
 ### UMD (browser)
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
     const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
 
-## API
+## How to use
+
+All paths are absolute: they must start with `/`. The root directory is `/`.
+
+### Example
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
@@ -129,15 +90,20 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### Path conventions
+### API Reference
 
-All paths are absolute: they must start with `/`. The root directory is `/`.
-
-### `TinyFS.create(db_name)`
+`TinyFS.create(db_name, opts?)`
 
 Opens or creates an IndexedDB database and initialises the root directory.
 Must be called once before any other operation. Each call with the same
 name reuses the existing database; data persists across page loads.
+
+Accepts optional settings:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `block_size` | `uint` | `4096` | Size in bytes of each data block. |
+| `max_fd` | `int` | `256` | Maximum number of simultaneously open file descriptors. |
 
 ```ts
 // Create a fresh database for this application.
@@ -146,9 +112,13 @@ const tfs = await TinyFS.create("my-app-data");
 // Two instances can use independent databases:
 const cfg  = await TinyFS.create("config");
 const data = await TinyFS.create("user-data");
+
+// Override defaults for a specific workload:
+const big   = await TinyFS.create("big-fs",   { block_size: 65536 });
+const small = await TinyFS.create("small-fs", { max_fd:     16    });
 ```
 
-### `shutdown()`
+`shutdown()`
 
 Closes the IndexedDB connection. Required before deleting the database,
 otherwise `deleteDatabase` will hang waiting for the connection to close.
@@ -165,7 +135,7 @@ await new Promise((res, rej) => {
 });
 ```
 
-### `stat(path, buf)`
+`stat(path, buf)`
 
 Fills `buf` with `{ size, mode, nlink }` for the given path. Returns 0
 on success, -1 if the path does not exist or an ancestor is not a
@@ -182,7 +152,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 }
 ```
 
-### `open(path, flags)`
+`open(path, flags)`
 
 Opens or creates a file and returns a file descriptor. The `flags`
 argument is a bitmask; combine constants with `|`:
@@ -215,7 +185,7 @@ const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
 if (fd < 0) { /* another instance already exists */ }
 ```
 
-### `close(fd)`
+`close(fd)`
 
 Releases a file descriptor so its slot can be reused. Returns 0 on
 success, -1 if the fd is out of range or already closed.
@@ -225,12 +195,17 @@ if (tfs.close(fd) === -1)
     console.error("double-close or invalid fd");
 ```
 
-### `MAX_FD`
+`max_fd`
 
 The maximum number of simultaneously open file descriptors. `open()` returns -1
-when this limit is reached.
+when this limit is reached. Set via the `max_fd` option in `TinyFS.create()`.
 
-### `read(fd, buffer, length)`
+`block_size`
+
+The size in bytes of each data block. All file I/O is divided into chunks of
+this size. Set via the `block_size` option in `TinyFS.create()`.
+
+`read(fd, buffer, length)`
 
 Reads up to `length` bytes from the current file offset into `buffer`.
 Advances the offset by the number of bytes read. Returns the number
@@ -248,7 +223,7 @@ if (n > 0) {
 }
 ```
 
-### `write(fd, buffer, length)`
+`write(fd, buffer, length)`
 
 Writes `length` bytes from `buffer` at the current file offset.
 If `APPEND` was set on the fd, the offset is first moved to the end.
@@ -262,7 +237,7 @@ if (n !== data.length)
     console.error("short write (likely out of space)");
 ```
 
-### `lseek(fd, offset, whence)`
+`lseek(fd, offset, whence)`
 
 Repositions the file offset. `whence` is one of `SET` (absolute from
 start), `CURRENT` (relative to current position), or `END` (relative
@@ -282,7 +257,7 @@ const size = await tfs.lseek(fd, 10, tfs.END);
 // Attempting to seek before the start clamps to 0.
 ```
 
-### `mkdir(path)`
+`mkdir(path)`
 
 Creates a directory. The parent directory must already exist. Returns
 0 on success, -1 if the path already exists or the parent cannot be
@@ -299,7 +274,7 @@ await tfs.mkdir("/a/b");
 await tfs.mkdir("/a/b/c");
 ```
 
-### `rmdir(path)`
+`rmdir(path)`
 
 Removes an empty directory. Returns 0 on success, -1 if the directory
 is not empty, is not a directory, or does not exist.
@@ -313,7 +288,7 @@ if (await tfs.rmdir("/data") === -1) {
 }
 ```
 
-### `readdir(path)`
+`readdir(path)`
 
 Returns an array of `{ id, name }` objects for every entry in the
 directory, or -1 if the path does not exist or is not a directory.
@@ -327,7 +302,7 @@ if (Array.isArray(entries)) {
 }
 ```
 
-### `unlink(path)`
+`unlink(path)`
 
 Removes a name (hard link) from the filesystem. When the last link is
 removed the inode and all its data blocks are deleted. Returns 0 on
@@ -339,7 +314,7 @@ if (await tfs.unlink("/tempfile") === 0)
     console.log("file removed");
 ```
 
-### `link(oldpath, newpath)`
+`link(oldpath, newpath)`
 
 Creates a hard link pointing to the same inode as `oldpath`. Both
 names are interchangeable after this call; the inode persists until
@@ -364,7 +339,7 @@ await tfs.unlink("/original");
 // /backup still readable.
 ```
 
-### `rename(oldpath, newpath)`
+`rename(oldpath, newpath)`
 
 Moves a file from `oldpath` to `newpath`. If `newpath` already exists
 it is atomically replaced. Directories cannot be renamed. Returns 0
@@ -381,15 +356,21 @@ await tfs.rename("/new_config", "/config");
 ## Building & Running tests
 
 ```bash
-bun run build     # Builds all distributables.
-bun test          # Run unit and concurrency tests.
-bun run fuzz      # Run the random-op fuzzer.
+$ bun run build # Builds all distributables.
+$ bun test      # Run unit and concurrency tests.
+$ bun run fuzz  # Run the random-op fuzzer.
 ```
 
 ## Benchmarks
 
+Use the `bench` command to un a benchmark on your system using Puppeteer.
+You can also open bench.html to benchmark in other browsers.
+Otherwise, refer to the baseline below.
+
 ```
-tinyfs stress test
+$ bun run bench
+
+tinyfs bench test
 
 chrome:      /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 cpu:         Apple M1 (8 cores)
@@ -434,8 +415,6 @@ latency benchmarks:  5500 operations across 11 benchmarks
 throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
-
-**NOTE**: Open stress.html to benchmark on other browsers.
 
 ## License
 

@@ -20,7 +20,7 @@ const VARIANTS : Variant[] = [
     { format: "esm",  minify: true,  isUMD: true,  outfile: "dist/tinyfs.umd.min.js",  entrypoint: "src/tinyfs.ts",     globalName: "tinyfs" },
 
     // bench bundle: pure-TS shared benchmark logic, reused by both the
-    // headless runner (scripts/stress.ts) and the in-browser page (stress.html).
+    // headless runner (scripts/bench.ts) and the in-browser page (bench.html).
     { format: "esm",  minify: false, isUMD: true,  outfile: "dist/bench.umd.js",     entrypoint: "bench/bench.ts", globalName: "bench"  },
     { format: "esm",  minify: true,  isUMD: true,  outfile: "dist/bench.umd.min.js", entrypoint: "bench/bench.ts", globalName: "bench"  },
 ];

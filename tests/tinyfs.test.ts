@@ -10,7 +10,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-    for (let i = 0; i < tfs.MAX_FD; i++)
+    for (let i = 0; i < tfs.max_fd; i++)
     {
         if (tfs.fd_table[i]!.used)
             tfs.close(i);
@@ -84,7 +84,7 @@ describe("open / close", () => {
     test("should return -1 for close on invalid fd", () => {
         expect(tfs.close(-1)).toBe(-1);
         expect(tfs.close(999)).toBe(-1);
-        expect(tfs.close(tfs.MAX_FD)).toBe(-1);
+        expect(tfs.close(tfs.max_fd)).toBe(-1);
     });
 
     test("CREATE | EXCLUSIVE should fail on existing file", async () => {
@@ -105,7 +105,7 @@ describe("open / close", () => {
     test("should exhaust fd table gracefully", async () => {
         const fds : number[] = [];
 
-        for (let i = 0; i < tfs.MAX_FD; i++)
+        for (let i = 0; i < tfs.max_fd; i++)
         {
             const fd : number = await tfs.open(`/f${i}`, tfs.CREATE | tfs.READ_WRITE);
 
@@ -115,7 +115,7 @@ describe("open / close", () => {
             fds.push(fd);
         }
 
-        expect(fds.length).toBe(tfs.MAX_FD);
+        expect(fds.length).toBe(tfs.max_fd);
 
         const fd : number = await tfs.open("/extra", tfs.CREATE | tfs.READ_WRITE);
         expect(fd).toBe(-1);
@@ -180,7 +180,7 @@ describe("write / read", () => {
 
     test("should write across block boundaries", async () => {
         const fd   : number     = await tfs.open("/big", tfs.CREATE | tfs.READ_WRITE);
-        const data : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE + 100).fill(0x42);
+        const data : Uint8Array = new Uint8Array(tfs.block_size + 100).fill(0x42);
         const nw   : number     = await tfs.write(fd, data, data.length);
 
         expect(nw).toBe(data.length);
@@ -603,17 +603,17 @@ describe("interleaved operations", () => {
 describe("block-boundary writes", () => {
     test("should write exactly BLOCK_SIZE bytes", async () => {
         const fd   : number     = await tfs.open("/exactb", tfs.CREATE | tfs.READ_WRITE);
-        const data : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE).fill(0xAA);
-        const nw   : number     = await tfs.write(fd, data, tfs.BLOCK_SIZE);
+        const data : Uint8Array = new Uint8Array(tfs.block_size).fill(0xAA);
+        const nw   : number     = await tfs.write(fd, data, tfs.block_size);
 
-        expect(nw).toBe(tfs.BLOCK_SIZE);
+        expect(nw).toBe(tfs.block_size);
 
         await tfs.lseek(fd, 0, tfs.SET);
 
-        const buf : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE);
-        const nr  : number     = await tfs.read(fd, buf, tfs.BLOCK_SIZE);
+        const buf : Uint8Array = new Uint8Array(tfs.block_size);
+        const nr  : number     = await tfs.read(fd, buf, tfs.block_size);
 
-        expect(nr).toBe(tfs.BLOCK_SIZE);
+        expect(nr).toBe(tfs.block_size);
         expect(buf).toEqual(data);
 
         tfs.close(fd);
@@ -621,17 +621,17 @@ describe("block-boundary writes", () => {
 
     test("should write BLOCK_SIZE + 1 bytes (cross one boundary)", async () => {
         const fd   : number     = await tfs.open("/crossb", tfs.CREATE | tfs.READ_WRITE);
-        const data : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE + 1).fill(0xBB);
-        const nw   : number     = await tfs.write(fd, data, tfs.BLOCK_SIZE + 1);
+        const data : Uint8Array = new Uint8Array(tfs.block_size + 1).fill(0xBB);
+        const nw   : number     = await tfs.write(fd, data, tfs.block_size + 1);
 
-        expect(nw).toBe(tfs.BLOCK_SIZE + 1);
+        expect(nw).toBe(tfs.block_size + 1);
 
         await tfs.lseek(fd, 0, tfs.SET);
 
-        const buf : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE + 1);
-        const nr  : number     = await tfs.read(fd, buf, tfs.BLOCK_SIZE + 1);
+        const buf : Uint8Array = new Uint8Array(tfs.block_size + 1);
+        const nr  : number     = await tfs.read(fd, buf, tfs.block_size + 1);
 
-        expect(nr).toBe(tfs.BLOCK_SIZE + 1);
+        expect(nr).toBe(tfs.block_size + 1);
         expect(buf).toEqual(data);
 
         tfs.close(fd);
@@ -639,17 +639,17 @@ describe("block-boundary writes", () => {
 
     test("should write 2 * BLOCK_SIZE bytes (two full blocks)", async () => {
         const fd   : number     = await tfs.open("/twofull", tfs.CREATE | tfs.READ_WRITE);
-        const data : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE * 2).fill(0xCC);
-        const nw   : number     = await tfs.write(fd, data, tfs.BLOCK_SIZE * 2);
+        const data : Uint8Array = new Uint8Array(tfs.block_size * 2).fill(0xCC);
+        const nw   : number     = await tfs.write(fd, data, tfs.block_size * 2);
 
-        expect(nw).toBe(tfs.BLOCK_SIZE * 2);
+        expect(nw).toBe(tfs.block_size * 2);
 
         await tfs.lseek(fd, 0, tfs.SET);
 
-        const buf : Uint8Array = new Uint8Array(tfs.BLOCK_SIZE * 2);
-        const nr  : number     = await tfs.read(fd, buf, tfs.BLOCK_SIZE * 2);
+        const buf : Uint8Array = new Uint8Array(tfs.block_size * 2);
+        const nr  : number     = await tfs.read(fd, buf, tfs.block_size * 2);
 
-        expect(nr).toBe(tfs.BLOCK_SIZE * 2);
+        expect(nr).toBe(tfs.block_size * 2);
         expect(buf).toEqual(data);
 
         tfs.close(fd);
@@ -769,7 +769,7 @@ describe("fd slot reuse", () => {
     test("should reuse closed fd slot", async () => {
         const fds : number[] = [];
 
-        for (let i = 0; i < tfs.MAX_FD; i++)
+        for (let i = 0; i < tfs.max_fd; i++)
         {
             const fd : number = await tfs.open(`/reuse_${i}`, tfs.CREATE | tfs.READ_WRITE);
             expect(fd).toBeGreaterThanOrEqual(0);
@@ -785,7 +785,7 @@ describe("fd slot reuse", () => {
         const new_fd : number = await tfs.open("/reuse_new", tfs.CREATE | tfs.READ_WRITE);
         expect(new_fd).toBe(fds[0]!);
 
-        for (let i = 1; i < tfs.MAX_FD; i++)
+        for (let i = 1; i < tfs.max_fd; i++)
             tfs.close(fds[i]!);
 
         tfs.close(new_fd);

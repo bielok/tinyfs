@@ -60,7 +60,7 @@ var tfs = null;
             mutationCount = 0;
             abortTarget   = -1;
 
-            for (let i = 0; i < tfs.MAX_FD; i++)
+            for (let i = 0; i < tfs.max_fd; i++)
             {
                 if (tfs.fd_table[i].used)
                     tfs.close(i);

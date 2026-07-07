@@ -101,7 +101,11 @@ async function main() {
 </script>
 ```
 
-## API
+## 사용 방법
+
+모든 경로는 절대 경로입니다——`/`로 시작해야 합니다. 루트 디렉터리는 `/`입니다.
+
+### 예제
 
 ```ts
 import { TinyFS } from "tinyfs";
@@ -120,13 +124,18 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### 경로 규칙
+### API Reference
 
-모든 경로는 절대 경로이며 `/`로 시작해야 합니다. 루트 디렉터리는 `/`입니다.
-
-### `TinyFS.create(db_name)`
+`TinyFS.create(db_name, opts?)`
 
 IndexedDB 데이터베이스를 열거나 생성하고 루트 디렉터리를 초기화합니다. 다른 모든 작업보다 먼저 호출해야 합니다. 동일한 이름으로 여러 번 호출하면 기존 데이터베이스를 재사용하므로 데이터가 페이지 로드 간에 유지됩니다.
+
+선택적 설정을 받습니다：
+
+| 옵션 | 타입 | 기본값 | 설명 |
+|---|---|---|---|
+| `block_size` | `uint` | `4096` | 각 데이터 블록의 크기(바이트)입니다. |
+| `max_fd` | `int` | `256` | 동시에 열 수 있는 파일 디스크립터의 최대 개수입니다. |
 
 ```ts
 // 애플리케이션용 새 데이터베이스를 생성합니다.
@@ -135,9 +144,13 @@ const tfs = await TinyFS.create("my-app-data");
 // 두 인스턴스가 독립적인 데이터베이스를 사용할 수 있습니다:
 const cfg  = await TinyFS.create("config");
 const data = await TinyFS.create("user-data");
+
+// Override defaults for a specific workload.
+const big   = await TinyFS.create("big-fs",   { block_size: 65536 });
+const small = await TinyFS.create("small-fs", { max_fd:     16    });
 ```
 
-### `shutdown()`
+`shutdown()`
 
 IndexedDB 연결을 닫습니다. 데이터베이스를 삭제하기 전에 이 메서드를 호출해야 합니다. 그렇지 않으면 `deleteDatabase`가 연결이 종료될 때까지 대기합니다.
 
@@ -153,7 +166,7 @@ await new Promise((res, rej) => {
 });
 ```
 
-### `stat(path, buf)`
+`stat(path, buf)`
 
 지정된 경로의 `{ size, mode, nlink }`를 `buf`에 채웁니다. 성공 시 0을, 경로가 없거나 상위 경로가 디렉터리가 아닌 경우 -1을 반환합니다.
 
@@ -168,7 +181,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 }
 ```
 
-### `open(path, flags)`
+`open(path, flags)`
 
 파일을 열거나 생성하고 파일 디스크립터를 반환합니다. `flags` 인수는 비트마스크입니다. `|`로 상수를 조합합니다:
 
@@ -196,7 +209,7 @@ const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
 if (fd < 0) { /* 다른 인스턴스가 이미 존재함 */ }
 ```
 
-### `close(fd)`
+`close(fd)`
 
 파일 디스크립터를 해제하여 슬롯을 재사용할 수 있게 합니다. 성공 시 0을, fd가 범위를 벗어나거나 이미 닫힌 경우 -1을 반환합니다.
 
@@ -205,11 +218,15 @@ if (tfs.close(fd) === -1)
     console.error("이중 닫기 또는 유효하지 않은 fd");
 ```
 
-### `MAX_FD`
+`max_fd`
 
-동시에 열 수 있는 파일 디스크립터의 최대 개수입니다. 이 제한에 도달하면 `open()`이 -1을 반환합니다.
+동시에 열 수 있는 파일 디스크립터의 최대 개수입니다. 이 제한에 도달하면 `open()`이 -1을 반환합니다. `TinyFS.create()`의 `max_fd` 옵션으로 설정할 수 있습니다.
 
-### `read(fd, buffer, length)`
+`block_size`
+
+각 데이터 블록의 크기(바이트)입니다. 모든 파일 I/O는 이 크기의 청크로 나뉩니다. `TinyFS.create()`의 `block_size` 옵션으로 설정할 수 있습니다.
+
+`read(fd, buffer, length)`
 
 현재 파일 오프셋에서 최대 `length` 바이트를 `buffer`로 읽습니다. 읽은 바이트 수만큼 오프셋이 앞으로 이동합니다. 읽은 바이트 수를 반환하고, EOF인 경우 0을, 오류 시 -1을 반환합니다.
 
@@ -225,7 +242,7 @@ if (n > 0) {
 }
 ```
 
-### `write(fd, buffer, length)`
+`write(fd, buffer, length)`
 
 현재 파일 오프셋에서 `buffer`의 `length` 바이트를 씁니다. fd에 `APPEND`가 설정된 경우 오프셋이 먼저 끝으로 이동합니다. 쓴 바이트 수를 반환하고, 오류 시 -1을 반환합니다.
 
@@ -237,7 +254,7 @@ if (n !== data.length)
     console.error("쓰기 부족——공간이 부족할 수 있음");
 ```
 
-### `lseek(fd, offset, whence)`
+`lseek(fd, offset, whence)`
 
 파일 오프셋을 재배치합니다. `whence`는 `SET`(처음부터 절대 위치), `CURRENT`(현재 위치 기준), `END`(파일 끝 기준) 중 하나입니다. 새 오프셋을 반환하고, 오류 시 -1을 반환합니다.
 
@@ -255,7 +272,7 @@ const size = await tfs.lseek(fd, 10, tfs.END);
 // 시작보다 앞으로 시크하려고 하면 0으로 고정됩니다.
 ```
 
-### `mkdir(path)`
+`mkdir(path)`
 
 디렉터리를 생성합니다. 부모 디렉터리가 이미 존재해야 합니다. 성공 시 0을, 경로가 이미 있거나 부모를 확인할 수 없는 경우 -1을 반환합니다.
 
@@ -270,7 +287,7 @@ await tfs.mkdir("/a/b");
 await tfs.mkdir("/a/b/c");
 ```
 
-### `rmdir(path)`
+`rmdir(path)`
 
 빈 디렉터리를 제거합니다. 성공 시 0을, 디렉터리가 비어 있지 않거나, 디렉터리가 아니거나, 존재하지 않는 경우 -1을 반환합니다.
 
@@ -283,7 +300,7 @@ if (await tfs.rmdir("/data") === -1) {
 }
 ```
 
-### `readdir(path)`
+`readdir(path)`
 
 디렉터리의 각 항목에 대한 `{ id, name }` 객체 배열을 반환합니다. 경로가 없거나 디렉터리가 아닌 경우 -1을 반환합니다.
 
@@ -296,7 +313,7 @@ if (Array.isArray(entries)) {
 }
 ```
 
-### `unlink(path)`
+`unlink(path)`
 
 파일 시스템에서 이름(하드 링크)을 제거합니다. 마지막 링크가 제거되면 inode와 모든 데이터 블록이 삭제됩니다. 성공 시 0을, 오류 시 -1을 반환합니다. 디렉터리는 `rmdir`로 제거해야 합니다.
 
@@ -306,7 +323,7 @@ if (await tfs.unlink("/tempfile") === 0)
     console.log("파일이 제거됨");
 ```
 
-### `link(oldpath, newpath)`
+`link(oldpath, newpath)`
 
 `oldpath`와 동일한 inode를 가리키는 하드 링크를 생성합니다. 이 호출 후 두 이름은 서로 바꿔 사용할 수 있습니다. inode는 두 링크가 모두 삭제될 때까지 유지됩니다. 성공 시 0을, 오류 시 -1을 반환합니다. 디렉터리에는 하드 링크를 만들 수 없습니다.
 
@@ -328,7 +345,7 @@ await tfs.unlink("/original");
 // /backup은 여전히 읽기 가능.
 ```
 
-### `rename(oldpath, newpath)`
+`rename(oldpath, newpath)`
 
 파일을 `oldpath`에서 `newpath`로 이동합니다. `newpath`가 이미 있으면 원자적으로 대체됩니다. 디렉터리 이름은 변경할 수 없습니다. 성공 시 0을, 오류 시 -1을 반환합니다.
 
@@ -351,7 +368,7 @@ bun run fuzz      # 무작위 작업 퍼저를 실행합니다.
 ## Benchmarks
 
 ```
-tinyfs stress test
+tinyfs bench test
 
 chrome:      /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 cpu:         Apple M1 (8 cores)
@@ -397,7 +414,7 @@ throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
 
-**NOTE**: Open stress.html to benchmark on other browsers.
+**NOTE**: Open bench.html to benchmark on other browsers.
 
 ## 라이선스
 

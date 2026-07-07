@@ -1,16 +1,16 @@
 import os from "node:os";
 import puppeteer, { Browser, Page } from "puppeteer-core";
 
-// tinyfs browser stress test harness
+// tinyfs browser bench test harness
 //
-// Launches headless Chrome, serves bench/stress.html which loads the
+// Launches headless Chrome, serves bench/bench.html which loads the
 // tinyfs UMD and bench UMD bundles, runs latency and throughput benchmarks
 // inside IndexedDB, and writes the formatted report to stdout.
 //
-// Usage:  bun run scripts/stress.ts
-// Option: CHROME_PATH=/custom/path bun run scripts/stress.ts
+// Usage:  bun run scripts/bench.ts
+// Option: CHROME_PATH=/custom/path bun run scripts/bench.ts
 
-const HARNESS_HTML = "bench/stress.html";
+const HARNESS_HTML = "bench/bench.html";
 
 async function main () : Promise<void>
 {
@@ -77,7 +77,7 @@ async function main () : Promise<void>
             summary_text : document.getElementById("summary")!.textContent,
         }));
 
-        console.log("tinyfs stress test\n");
+        console.log("tinyfs bench test\n");
         console.log(`chrome:      ${chromeLabel}`);
         console.log(`cpu:         ${cpuInfo}`);
         console.log(`time:        ${new Date().toISOString()}`);
@@ -95,6 +95,6 @@ async function main () : Promise<void>
 }
 
 main().catch((err) => {
-    console.error("stress test failed:", err);
+    console.error("bench test failed:", err);
     process.exit(1);
 });

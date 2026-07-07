@@ -17,7 +17,7 @@ En tinyfs, cada syscall que modifica estado se ejecuta dentro de una única tran
 - Más del 90% de cobertura con pruebas.
 - Incluye un fuzzer básico.
 - Incluye pruebas de atomicidad y concurrencia en el navegador.
-- Pruebas de stress en Chrome usando Puppeteer.
+- Pruebas de bench en Chrome usando Puppeteer.
 - Disponible en CommonJS, ESM y UMD.
 - Compatible con proyectos tanto de JavaScript puro como de TypeScript.
 
@@ -101,7 +101,11 @@ async function main() {
 </script>
 ```
 
-## API
+## Cómo usar
+
+Todas las rutas son absolutas: deben comenzar con `/`. El directorio raíz es `/`.
+
+### Ejemplo
 
 ```ts
 import { TinyFS } from "tinyfs";
@@ -120,13 +124,18 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### Convenciones de ruta
+### API Reference
 
-Todas las rutas son absolutas: deben comenzar con `/`. El directorio raíz es `/`.
-
-### `TinyFS.create(db_name)`
+`TinyFS.create(db_name, opts?)`
 
 Abre o crea una base de datos IndexedDB e inicializa el directorio raíz. Debe llamarse una vez antes de cualquier otra operación. Cada llamada con el mismo nombre reutiliza la base de datos existente: los datos persisten entre recargas de página.
+
+Acepta ajustes opcionales:
+
+| Opción | Tipo | Por defecto | Descripción |
+|---|---|---|---|
+| `block_size` | `uint` | `4096` | Tamaño en bytes de cada bloque de datos. |
+| `max_fd` | `int` | `256` | Número máximo de descriptores de archivo abiertos simultáneamente. |
 
 ```ts
 // Crear una base de datos nueva para esta aplicación.
@@ -135,9 +144,13 @@ const tfs = await TinyFS.create("my-app-data");
 // Dos instancias pueden usar bases de datos independientes:
 const cfg  = await TinyFS.create("config");
 const data = await TinyFS.create("user-data");
+
+// Override defaults for a specific workload.
+const big   = await TinyFS.create("big-fs",   { block_size: 65536 });
+const small = await TinyFS.create("small-fs", { max_fd:     16    });
 ```
 
-### `shutdown()`
+`shutdown()`
 
 Cierra la conexión IndexedDB. Necesario antes de eliminar la base de datos; de lo contrario, `deleteDatabase` se quedará esperando a que la conexión se cierre.
 
@@ -153,7 +166,7 @@ await new Promise((res, rej) => {
 });
 ```
 
-### `stat(path, buf)`
+`stat(path, buf)`
 
 Llena `buf` con `{ size, mode, nlink }` para la ruta dada. Devuelve 0 en caso de éxito, -1 si la ruta no existe o un ancestro no es un directorio.
 
@@ -168,7 +181,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 }
 ```
 
-### `open(path, flags)`
+`open(path, flags)`
 
 Abre o crea un archivo y devuelve un descriptor de archivo. El argumento `flags` es una máscara de bits: combine constantes con `|`:
 
@@ -196,7 +209,7 @@ const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
 if (fd < 0) { /* otra instancia ya existe */ }
 ```
 
-### `close(fd)`
+`close(fd)`
 
 Libera un descriptor de archivo para que su ranura pueda reutilizarse. Devuelve 0 en caso de éxito, -1 si el fd está fuera de rango o ya está cerrado.
 
@@ -205,11 +218,15 @@ if (tfs.close(fd) === -1)
     console.error("doble cierre o fd inválido");
 ```
 
-### `MAX_FD`
+`max_fd`
 
-Número máximo de descriptores de archivo abiertos simultáneamente. `open()` devuelve -1 cuando se alcanza este límite.
+Número máximo de descriptores de archivo abiertos simultáneamente. `open()` devuelve -1 cuando se alcanza este límite. Se configura mediante la opción `max_fd` en `TinyFS.create()`.
 
-### `read(fd, buffer, length)`
+`block_size`
+
+Tamaño en bytes de cada bloque de datos. Toda la E/S de archivos se divide en fragmentos de este tamaño. Se configura mediante la opción `block_size` en `TinyFS.create()`.
+
+`read(fd, buffer, length)`
 
 Lee hasta `length` bytes desde el desplazamiento actual del archivo en `buffer`. Avanza el desplazamiento en la cantidad de bytes leídos. Devuelve el número de bytes leídos, 0 en EOF, o -1 en caso de error.
 
@@ -225,7 +242,7 @@ if (n > 0) {
 }
 ```
 
-### `write(fd, buffer, length)`
+`write(fd, buffer, length)`
 
 Escribe `length` bytes desde `buffer` en el desplazamiento actual del archivo. Si se estableció `APPEND` en el fd, el desplazamiento se mueve primero al final. Devuelve el número de bytes escritos, o -1 en caso de error.
 
@@ -237,7 +254,7 @@ if (n !== data.length)
     console.error("escritura corta (probablemente falta de espacio)");
 ```
 
-### `lseek(fd, offset, whence)`
+`lseek(fd, offset, whence)`
 
 Reposiciona el desplazamiento del archivo. `whence` puede ser `SET` (absoluto desde el inicio), `CURRENT` (relativo a la posición actual) o `END` (relativo al final del archivo). Devuelve el nuevo desplazamiento, o -1 en caso de error.
 
@@ -256,7 +273,7 @@ const size = await tfs.lseek(fd, 10, tfs.END);
 // Intentar buscar antes del inicio se fija a 0.
 ```
 
-### `mkdir(path)`
+`mkdir(path)`
 
 Crea un directorio. El directorio padre ya debe existir. Devuelve 0 en caso de éxito, -1 si la ruta ya existe o no se puede resolver el padre.
 
@@ -271,7 +288,7 @@ await tfs.mkdir("/a/b");
 await tfs.mkdir("/a/b/c");
 ```
 
-### `rmdir(path)`
+`rmdir(path)`
 
 Elimina un directorio vacío. Devuelve 0 en caso de éxito, -1 si el directorio no está vacío, no es un directorio o no existe.
 
@@ -284,7 +301,7 @@ if (await tfs.rmdir("/data") === -1) {
 }
 ```
 
-### `readdir(path)`
+`readdir(path)`
 
 Devuelve un array de objetos `{ id, name }` para cada entrada en el directorio, o -1 si la ruta no existe o no es un directorio.
 
@@ -297,7 +314,7 @@ if (Array.isArray(entries)) {
 }
 ```
 
-### `unlink(path)`
+`unlink(path)`
 
 Elimina un nombre (enlace duro) del sistema de archivos. Cuando se elimina el último enlace, el inodo y todos sus bloques de datos se borran. Devuelve 0 en caso de éxito, -1 en caso de error. Los directorios deben eliminarse con `rmdir`.
 
@@ -307,7 +324,7 @@ if (await tfs.unlink("/tempfile") === 0)
     console.log("archivo eliminado");
 ```
 
-### `link(oldpath, newpath)`
+`link(oldpath, newpath)`
 
 Crea un enlace duro que apunta al mismo inodo que `oldpath`. Ambos nombres son intercambiables después de esta llamada: el inodo persiste hasta que ambos sean desvinculados. Devuelve 0 en caso de éxito, -1 en caso de error. No se pueden enlazar directorios.
 
@@ -329,7 +346,7 @@ await tfs.unlink("/original");
 // /backup sigue siendo legible.
 ```
 
-### `rename(oldpath, newpath)`
+`rename(oldpath, newpath)`
 
 Mueve un archivo de `oldpath` a `newpath`. Si `newpath` ya existe, se reemplaza atómicamente. Los directorios no pueden renombrarse. Devuelve 0 en caso de éxito, -1 en caso de error.
 
@@ -352,7 +369,7 @@ bun run fuzz      # Ejecuta el fuzzer de operaciones aleatorias.
 ## Benchmarks
 
 ```
-tinyfs stress test
+tinyfs bench test
 
 chrome:      /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 cpu:         Apple M1 (8 cores)
@@ -398,7 +415,7 @@ throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
 
-**NOTE**: Open stress.html to benchmark on other browsers.
+**NOTE**: Open bench.html to benchmark on other browsers.
 
 ## Licencia
 

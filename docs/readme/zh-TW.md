@@ -101,7 +101,11 @@ async function main() {
 </script>
 ```
 
-## API
+## 如何使用
+
+所有路徑皆為絕對路徑——必須以 `/` 開頭。根目錄是 `/`。
+
+### 範例
 
 ```ts
 import { TinyFS } from "tinyfs";
@@ -120,13 +124,18 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### 路徑約定
+### API Reference
 
-所有路徑都是絕對路徑——必須以 `/` 開頭。根目錄是 `/`。
-
-### `TinyFS.create(db_name)`
+`TinyFS.create(db_name, opts?)`
 
 開啟或建立一個 IndexedDB 資料庫並初始化根目錄。在任何其他操作之前必須先呼叫此方法。使用相同名稱重複呼叫會複用已有的資料庫——資料在頁面載入之間持續存在。
+
+接受可選設定：
+
+| 選項 | 類型 | 預設值 | 說明 |
+|---|---|---|---|
+| `block_size` | `uint` | `4096` | 每個資料區塊的大小（位元組）。 |
+| `max_fd` | `int` | `256` | 同時開啟的檔案描述子最大數量。 |
 
 ```ts
 // 為應用程式建立一個全新的資料庫。
@@ -135,9 +144,13 @@ const tfs = await TinyFS.create("my-app-data");
 // 兩個實例可以使用獨立的資料庫：
 const cfg  = await TinyFS.create("config");
 const data = await TinyFS.create("user-data");
+
+// Override defaults for a specific workload.
+const big   = await TinyFS.create("big-fs",   { block_size: 65536 });
+const small = await TinyFS.create("small-fs", { max_fd:     16    });
 ```
 
-### `shutdown()`
+`shutdown()`
 
 關閉 IndexedDB 連線。在刪除資料庫之前必須呼叫此方法，否則 `deleteDatabase` 將一直等待連線關閉。
 
@@ -153,7 +166,7 @@ await new Promise((res, rej) => {
 });
 ```
 
-### `stat(path, buf)`
+`stat(path, buf)`
 
 用指定路徑的 `{ size, mode, nlink }` 填充 `buf`。成功返回 0，路徑不存在或上層不是目錄時返回 -1。
 
@@ -168,7 +181,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 }
 ```
 
-### `open(path, flags)`
+`open(path, flags)`
 
 開啟或建立一個檔案並返回檔案描述子。`flags` 參數是一個位元遮罩——使用 `|` 組合常數：
 
@@ -196,7 +209,7 @@ const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
 if (fd < 0) { /* 另一個實例已存在 */ }
 ```
 
-### `close(fd)`
+`close(fd)`
 
 釋放檔案描述子供複用。成功返回 0，fd 超出範圍或已關閉時返回 -1。
 
@@ -205,11 +218,15 @@ if (tfs.close(fd) === -1)
     console.error("重複關閉或無效的 fd");
 ```
 
-### `MAX_FD`
+`max_fd`
 
-同時開啟的檔案描述子最大數量。達到此限制時 `open()` 返回 -1。
+同時開啟的檔案描述子最大數量。達到此限制時 `open()` 返回 -1。可透過 `TinyFS.create()` 的 `max_fd` 選項設定。
 
-### `read(fd, buffer, length)`
+`block_size`
+
+每個資料區塊的大小（位元組）。所有檔案 I/O 按此大小分塊。可透過 `TinyFS.create()` 的 `block_size` 選項設定。
+
+`read(fd, buffer, length)`
 
 從目前檔案偏移量讀取最多 `length` 位元組到 `buffer` 中。偏移量按實際讀取的位元組數向前移動。返回讀取的位元組數、EOF 時返回 0，出錯時返回 -1。
 
@@ -225,7 +242,7 @@ if (n > 0) {
 }
 ```
 
-### `write(fd, buffer, length)`
+`write(fd, buffer, length)`
 
 從目前檔案偏移量寫入 `buffer` 中的 `length` 個位元組。如果 fd 設定了 `APPEND`，偏移量會先移動到末尾。返回實際寫入的位元組數，出錯時返回 -1。
 
@@ -237,7 +254,7 @@ if (n !== data.length)
     console.error("寫入不足——可能空間不足");
 ```
 
-### `lseek(fd, offset, whence)`
+`lseek(fd, offset, whence)`
 
 重新定位檔案偏移量。`whence` 可以是 `SET`（從開頭絕對定位）、`CURRENT`（相對於目前位置）或 `END`（相對於檔案末尾）。返回新的偏移量，出錯時返回 -1。
 
@@ -255,7 +272,7 @@ const size = await tfs.lseek(fd, 10, tfs.END);
 // 嘗試定位到起始位置之前會限制為 0。
 ```
 
-### `mkdir(path)`
+`mkdir(path)`
 
 建立一個目錄。父目錄必須已經存在。成功返回 0，路徑已存在或無法解析父目錄時返回 -1。
 
@@ -270,7 +287,7 @@ await tfs.mkdir("/a/b");
 await tfs.mkdir("/a/b/c");
 ```
 
-### `rmdir(path)`
+`rmdir(path)`
 
 刪除一個空目錄。成功返回 0，目錄非空、不是目錄或不存在時返回 -1。
 
@@ -283,7 +300,7 @@ if (await tfs.rmdir("/data") === -1) {
 }
 ```
 
-### `readdir(path)`
+`readdir(path)`
 
 返回目錄中每個條目的 `{ id, name }` 物件陣列，如果路徑不存在或不是目錄則返回 -1。
 
@@ -296,7 +313,7 @@ if (Array.isArray(entries)) {
 }
 ```
 
-### `unlink(path)`
+`unlink(path)`
 
 從檔案系統中刪除一個名稱（硬連結）。當最後一個連結被移除時，inode 及其所有資料區塊將被刪除。成功返回 0，出錯返回 -1。目錄必須使用 `rmdir` 刪除。
 
@@ -306,7 +323,7 @@ if (await tfs.unlink("/tempfile") === 0)
     console.log("檔案已刪除");
 ```
 
-### `link(oldpath, newpath)`
+`link(oldpath, newpath)`
 
 建立一個指向與 `oldpath` 相同 inode 的硬連結。呼叫後兩個名稱可以互換使用——inode 會一直存在，直到兩個連結都被刪除。成功返回 0，出錯返回 -1。不能為目錄建立硬連結。
 
@@ -328,7 +345,7 @@ await tfs.unlink("/original");
 // /backup 仍然可讀。
 ```
 
-### `rename(oldpath, newpath)`
+`rename(oldpath, newpath)`
 
 將檔案從 `oldpath` 移動到 `newpath`。如果 `newpath` 已存在，它會被原子性地替換。不能重新命名目錄。成功返回 0，出錯返回 -1。
 
@@ -351,7 +368,7 @@ bun run fuzz      # 執行隨機操作模糊測試。
 ## Benchmarks
 
 ```
-tinyfs stress test
+tinyfs bench test
 
 chrome:      /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 cpu:         Apple M1 (8 cores)
@@ -397,7 +414,7 @@ throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
 
-**NOTE**: Open stress.html to benchmark on other browsers.
+**NOTE**: Open bench.html to benchmark on other browsers.
 
 ## 授權條款
 

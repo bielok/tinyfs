@@ -1,6 +1,6 @@
 {
   "name": "@bielok/tinyfs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An in-browser filesystem built on IndexedDB.",
   "license": "Public Domain",
   "repository": {
@@ -40,7 +40,7 @@
     "typecheck": "tsc --noEmit",
     "fuzz": "bun run tests/fuzz_run.ts",
     "build": "bun run scripts/build.ts",
-    "bench": "bun run scripts/stress.ts"
+    "bench": "bun run scripts/bench.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

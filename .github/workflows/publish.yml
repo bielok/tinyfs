@@ -7,6 +7,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +26,4 @@ jobs:
       - run: bun test --timeout 30000
 
       - name: Publish to npm
-        if: secrets.NPM_TOKEN != ''
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-          npm publish
+        run: npm publish --provenance

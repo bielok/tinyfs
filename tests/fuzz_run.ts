@@ -84,7 +84,7 @@ function idbReq<T>(
 
 async function resetFs () : Promise<void>
 {
-    for (let i = 0; i < tfs.MAX_FD; i++)
+    for (let i = 0; i < tfs.max_fd; i++)
     {
         if (tfs.fd_table[i]!.used)
             tfs.close(i);

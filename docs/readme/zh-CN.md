@@ -101,7 +101,11 @@ async function main() {
 </script>
 ```
 
-## API
+## 如何使用
+
+所有路径都是绝对路径——必须以 `/` 开头。根目录是 `/`。
+
+### 示例
 
 ```ts
 import { TinyFS } from "tinyfs";
@@ -120,13 +124,18 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### 路径约定
+### API Reference
 
-所有路径都是绝对路径——必须以 `/` 开头。根目录是 `/`。
-
-### `TinyFS.create(db_name)`
+`TinyFS.create(db_name, opts?)`
 
 打开或创建一个 IndexedDB 数据库并初始化根目录。在任何其他操作之前必须先调用此方法。使用相同名称重复调用会复用已有的数据库——数据在页面加载之间持续存在。
+
+接受可选设置：
+
+| 选项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `block_size` | `uint` | `4096` | 每个数据块的大小（字节）。 |
+| `max_fd` | `int` | `256` | 同时打开的文件描述符的最大数量。 |
 
 ```ts
 // 为应用程序创建一个全新的数据库。
@@ -135,9 +144,13 @@ const tfs = await TinyFS.create("my-app-data");
 // 两个实例可以使用独立的数据库：
 const cfg  = await TinyFS.create("config");
 const data = await TinyFS.create("user-data");
+
+// Override defaults for a specific workload.
+const big   = await TinyFS.create("big-fs",   { block_size: 65536 });
+const small = await TinyFS.create("small-fs", { max_fd:     16    });
 ```
 
-### `shutdown()`
+`shutdown()`
 
 关闭 IndexedDB 连接。在删除数据库之前必须调用此方法，否则 `deleteDatabase` 将一直等待连接关闭。
 
@@ -153,7 +166,7 @@ await new Promise((res, rej) => {
 });
 ```
 
-### `stat(path, buf)`
+`stat(path, buf)`
 
 用给定路径的 `{ size, mode, nlink }` 填充 `buf`。成功返回 0，路径不存在或祖先不是目录时返回 -1。
 
@@ -168,7 +181,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 }
 ```
 
-### `open(path, flags)`
+`open(path, flags)`
 
 打开或创建一个文件并返回文件描述符。`flags` 参数是一个位掩码——使用 `|` 组合常量：
 
@@ -196,7 +209,7 @@ const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
 if (fd < 0) { /* 另一个实例已存在 */ }
 ```
 
-### `close(fd)`
+`close(fd)`
 
 释放文件描述符以供复用。成功返回 0，fd 超出范围或已关闭时返回 -1。
 
@@ -205,11 +218,15 @@ if (tfs.close(fd) === -1)
     console.error("重复关闭或无效的 fd");
 ```
 
-### `MAX_FD`
+`max_fd`
 
-同时打开的文件描述符的最大数量。达到此限制时 `open()` 返回 -1。
+同时打开的文件描述符的最大数量。达到此限制时 `open()` 返回 -1。可通过 `TinyFS.create()` 的 `max_fd` 选项设置。
 
-### `read(fd, buffer, length)`
+`block_size`
+
+每个数据块的大小（字节）。所有文件 I/O 按此大小分块。可通过 `TinyFS.create()` 的 `block_size` 选项设置。
+
+`read(fd, buffer, length)`
 
 从当前文件偏移量读取最多 `length` 字节到 `buffer` 中。偏移量按实际读取的字节数向前移动。返回读取的字节数、EOF 时返回 0，出错时返回 -1。
 
@@ -225,7 +242,7 @@ if (n > 0) {
 }
 ```
 
-### `write(fd, buffer, length)`
+`write(fd, buffer, length)`
 
 从当前文件偏移量写入 `buffer` 中的 `length` 个字节。如果 fd 设置了 `APPEND`，偏移量会先移动到末尾。返回实际写入的字节数，出错时返回 -1。
 
@@ -237,7 +254,7 @@ if (n !== data.length)
     console.error("写入不足——可能空间不足");
 ```
 
-### `lseek(fd, offset, whence)`
+`lseek(fd, offset, whence)`
 
 重新定位文件偏移量。`whence` 可以是 `SET`（从开头绝对定位）、`CURRENT`（相对于当前位置）或 `END`（相对于文件末尾）。返回新的偏移量，出错时返回 -1。
 
@@ -255,7 +272,7 @@ const size = await tfs.lseek(fd, 10, tfs.END);
 // 尝试定位到起始位置之前会限制为 0。
 ```
 
-### `mkdir(path)`
+`mkdir(path)`
 
 创建一个目录。父目录必须已经存在。成功返回 0，路径已存在或无法解析父目录时返回 -1。
 
@@ -270,7 +287,7 @@ await tfs.mkdir("/a/b");
 await tfs.mkdir("/a/b/c");
 ```
 
-### `rmdir(path)`
+`rmdir(path)`
 
 删除一个空目录。成功返回 0，目录非空、不是目录或不存在时返回 -1。
 
@@ -283,7 +300,7 @@ if (await tfs.rmdir("/data") === -1) {
 }
 ```
 
-### `readdir(path)`
+`readdir(path)`
 
 返回目录中每个条目的 `{ id, name }` 对象数组，如果路径不存在或不是目录则返回 -1。
 
@@ -296,7 +313,7 @@ if (Array.isArray(entries)) {
 }
 ```
 
-### `unlink(path)`
+`unlink(path)`
 
 从文件系统中删除一个名称（硬链接）。当最后一个链接被移除时，inode 及其所有数据块将被删除。成功返回 0，出错返回 -1。目录必须使用 `rmdir` 删除。
 
@@ -306,7 +323,7 @@ if (await tfs.unlink("/tempfile") === 0)
     console.log("文件已删除");
 ```
 
-### `link(oldpath, newpath)`
+`link(oldpath, newpath)`
 
 创建一个指向与 `oldpath` 相同 inode 的硬链接。调用后两个名称可以互换使用——inode 会一直存在，直到两个链接都被删除。成功返回 0，出错返回 -1。不能为目录创建硬链接。
 
@@ -328,7 +345,7 @@ await tfs.unlink("/original");
 // /backup 仍然可读。
 ```
 
-### `rename(oldpath, newpath)`
+`rename(oldpath, newpath)`
 
 将文件从 `oldpath` 移动到 `newpath`。如果 `newpath` 已存在，它会被原子性地替换。不能重命名目录。成功返回 0，出错返回 -1。
 
@@ -351,7 +368,7 @@ bun run fuzz      # 运行随机操作模糊测试。
 ## Benchmarks
 
 ```
-tinyfs stress test
+tinyfs bench test
 
 chrome:      /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 cpu:         Apple M1 (8 cores)
@@ -397,7 +414,7 @@ throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
 
-**NOTE**: Open stress.html to benchmark on other browsers.
+**NOTE**: Open bench.html to benchmark on other browsers.
 
 ## 许可证
 
