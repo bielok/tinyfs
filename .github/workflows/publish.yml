@@ -26,9 +26,9 @@ jobs:
       - run: bun test --timeout 30000
 
       # Setup Node/npm for OIDC trusted publishing (no token needed).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org/
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
 
       - run: npm publish --access public
