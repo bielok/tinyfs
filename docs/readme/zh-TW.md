@@ -1,3 +1,6 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
@@ -5,9 +8,11 @@
 
 **繁體中文** | [English](../../README.md) | [简体中文](./zh-CN.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 
+</div>
+
 **摘要**
 
-tinyfs 的每個修改狀態的系統呼叫都在單一 IndexedDB 交易中執行。如果瀏覽器崩潰、超出配額限制或在操作中途關閉分頁，交易會原子性地回滾：要嘛所有區塊寫入和元資料更新一起提交，要嘛全部不提交。不會出現 torn write、懸空 inode 或檔案大小與區塊不匹配的情況。
+TInyFS 的每個修改狀態的系統呼叫都在單一 IndexedDB 交易中執行。如果瀏覽器崩潰、超出配額限制或在操作中途關閉分頁，交易會原子性地回滾：要嘛所有區塊寫入和元資料更新一起提交，要嘛全部不提交。不會出現 torn write、懸空 inode 或檔案大小與區塊不匹配的情況。
 
 **主要特性**
 
@@ -21,62 +26,18 @@ tinyfs 的每個修改狀態的系統呼叫都在單一 IndexedDB 交易中執�
 - 提供 CommonJS、ESM 和 UMD 格式的分發套件。
 - 相容於純 JavaScript 和 TypeScript 專案。
 
-## 安裝
+## 快速入門
+
+### 安裝
 
 ```bash
 > npm install tinyfs
 ```
 
-<details>
-<summary>使用其他套件管理器和執行環境安裝</summary>
-
-### 從 GitHub 安裝
-
-```bash
-> npm install bielok/tinyfs
-```
-
-參見 [npm 安裝文件](https://docs.npmjs.com/cli/v8/commands/npm-install)。
-
-### 使用 pnpm 安裝
-
-```bash
-> pnpm install tinyfs
-```
-
-參見 [pnpm 安裝文件](https://pnpm.io/cli/install)。
-
-### 使用 yarn 安裝
-
-```bash
-> yarn add tinyfs
-```
-
-參見 [yarn 添加文件](https://classic.yarnpkg.com/lang/en/docs/cli/add/)。
-
-### 使用 bun 安裝
-
-```bash
-> bun add tinyfs
-```
-
-參見 [bun 添加文件](https://bun.com/docs/pm/cli/add)。
-
-### 使用 deno 安裝
-
-```bash
-> deno install tinyfs
-```
-
-參見 [deno 安裝文件](https://docs.deno.com/runtime/reference/cli/install/)。
-</details>
-
-## 使用方式
-
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -96,7 +57,7 @@ async function main() {
 ```html
 <script src="dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS } = window.tinyfs;
+    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -108,13 +69,13 @@ async function main() {
 ### 範例
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", CREATE | READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -174,8 +135,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
+    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -199,13 +160,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 原子性地覆寫一個既有檔案（清除舊內容）。
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
 
 // 以唯讀方式開啟既有檔案（不存在時返回 -1）。
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", READ);
 
 // 原子性建立——如果已存在則失敗。
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
 if (fd < 0) { /* 另一個實例已存在 */ }
 ```
 
@@ -260,14 +221,14 @@ if (n !== data.length)
 
 ```ts
 // 回到開頭。
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 // 向前跳過 100 位元組（例如讀取標頭資訊）。
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, CURRENT);
 
 // 附加模式——跳過末尾到最後位元組。下一次寫入會延伸檔案，
 // 在舊大小和新偏移量之間產生稀疏區域。
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, END);
 
 // 嘗試定位到起始位置之前會限制為 0。
 ```

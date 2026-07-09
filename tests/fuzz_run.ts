@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { TinyFS, type StatBuf } from "../src/tinyfs.ts";
+import { CREATE, READ, READ_WRITE, ROOT_INODE, STORE_BLOCKS, STORE_INODES, TinyFS, TRUNCATE, TYPE_DIR, type StatBuf } from "../src/tinyfs.ts";
 import { Mulberry32 } from "./fuzzer.ts";
 
 let tfs : TinyFS;
@@ -90,27 +90,24 @@ async function resetFs () : Promise<void>
             tfs.close(i);
     }
 
-    tfs._dcache.clear();
+    tfs.dcache.clear();
 
-    const tx : IDBTransaction = tfs._fs_db!.transaction(
-        [tfs.STORE_INODES, tfs.STORE_BLOCKS],
-        "readwrite"
-    );
+    const tx : IDBTransaction = tfs.fs_db!.transaction([ STORE_INODES, STORE_BLOCKS ], "readwrite");
 
-    await idbReq(tx.objectStore(tfs.STORE_BLOCKS).clear());
+    await idbReq(tx.objectStore(STORE_BLOCKS).clear());
 
-    const inodes : IDBObjectStore = tx.objectStore(tfs.STORE_INODES);
-    const keys                    = await idbReq<IDBValidKey[]>(inodes.getAllKeys());
+    const inodes : IDBObjectStore = tx.objectStore(STORE_INODES);
+    const keys   : IDBValidKey[]  = await idbReq<IDBValidKey[]>(inodes.getAllKeys());
 
     for (const key of keys)
     {
-        if (key !== tfs.ROOT_INODE)
+        if (key !== ROOT_INODE)
             inodes.delete(key);
     }
 
     await idbReq(inodes.put({
-        id:      tfs.ROOT_INODE as number,
-        mode:    tfs.TYPE_DIR | 0o755,
+        id:      ROOT_INODE as number,
+        mode:    TYPE_DIR | 0o755,
         nlink:   1,
         size:    0,
         entries: {}
@@ -176,7 +173,7 @@ async function runSequence (
 
                 case 1:
                 {
-                    const fd : number = await tfs.open(p, tfs.CREATE | tfs.READ_WRITE);
+                    const fd : number = await tfs.open(p, CREATE | READ_WRITE);
 
                     if (fd >= 0)
                     {
@@ -197,7 +194,7 @@ async function runSequence (
                     const count : number = Math.min(i < input.length ? input[i]! + 1 : 1, 8192);
                     i += 1;
 
-                    const fd : number = await tfs.open(p, tfs.READ_WRITE);
+                    const fd : number = await tfs.open(p, READ_WRITE);
 
                     if (fd < 0)
                         break;
@@ -230,7 +227,7 @@ async function runSequence (
                     if (expected === undefined)
                         break;
 
-                    const fd : number = await tfs.open(p, tfs.READ);
+                    const fd : number = await tfs.open(p, READ);
 
                     if (fd < 0)
                         return `${opName} "${p}": open failed for expected file`;
@@ -263,7 +260,7 @@ async function runSequence (
 
                 case 6:
                 {
-                    const fd : number = await tfs.open(p, tfs.TRUNCATE | tfs.READ_WRITE);
+                    const fd : number = await tfs.open(p, TRUNCATE | READ_WRITE);
 
                     if (fd >= 0)
                     {

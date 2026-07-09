@@ -1,0 +1,6 @@
+v1.1.0 9/6/2026
+
+o Added support for filesystem serialization, import and export.
+o Formalized filesystem versioning, so that future major releases can migrate to new internal formats.
+o Flags are now meant to be imported and not accessed from static class properties.
+o Cleaned-up codestyle and some internal names.

@@ -115,6 +115,9 @@ export
 const ROOT_INODE : IDBValidKey = 1;
 
 export
+const DB_VERSION : uint = 1;
+
+export
 const STORE_INODES : string = "inodes";
 
 export
@@ -157,31 +160,18 @@ function _idbRequest<T> (
 export
 class TinyFS
 {
-    readonly READ         : int         = READ;
-    readonly WRITE        : int         = WRITE;
-    readonly READ_WRITE   : int         = READ_WRITE;
-    readonly ACCESS_MODE  : int         = ACCESS_MODE;
-    readonly CREATE       : int         = CREATE;
-    readonly EXCLUSIVE    : int         = EXCLUSIVE;
-    readonly TRUNCATE     : int         = TRUNCATE;
-    readonly APPEND       : int         = APPEND;
-    readonly SET          : int         = SET;
-    readonly CURRENT      : int         = CURRENT;
-    readonly END          : int         = END;
-    readonly TYPE_MASK    : int         = TYPE_MASK;
-    readonly TYPE_DIR     : int         = TYPE_DIR;
-    readonly TYPE_FILE    : int         = TYPE_FILE;
-    readonly STORE_INODES : string      = STORE_INODES;
-    readonly STORE_BLOCKS : string      = STORE_BLOCKS;
-    readonly ROOT_INODE   : IDBValidKey = ROOT_INODE;
+    static readonly MAGIC       : Uint8Array = new TextEncoder().encode("_TINYFS_");
+    static readonly HEADER_SIZE : uint       = 8 + 4 + 4 + 4; // magic + version + inode_ct + block_ct.
 
-    readonly block_size : uint;
-    readonly max_fd     : int;
+    readonly block_size : uint        = BLOCK_SIZE;
+    readonly max_fd     : int         = MAX_FD;
+    readonly encoder    : TextEncoder = new TextEncoder();
+    readonly decoder    : TextDecoder = new TextDecoder();
 
-    _fs_db    : IDBDatabase | null = null;
-    _dcache   : Map<string, int>;
-    fd_table  : FileDescriptor[];
-    _fd_mutex : (FdLockEntry[] | undefined)[];
+    fs_db    : IDBDatabase | null            = null;
+    dcache   : Map<string, int>              = new Map();
+    fd_table : FileDescriptor[]              = [];
+    fd_mutex : (FdLockEntry[] | undefined)[] = [];
 
     private constructor (
         opts? : TinyFSOptions
@@ -189,19 +179,17 @@ class TinyFS
     {
         this.block_size = opts?.block_size ?? BLOCK_SIZE;
         this.max_fd     = opts?.max_fd     ?? MAX_FD;
-        this._dcache    = new Map();
         this.fd_table   = new Array(this.max_fd);
-        this._fd_mutex  = [];
 
         for (let i = 0; i < this.max_fd; i++)
             this.fd_table[i] = { inode_id: 0, offset: -1, flags: 0, used: false };
     }
 
-    async _lockFd (
+    async lockFd (
         fd : int
     ) : Promise<() => void>
     {
-        const queue : FdLockEntry[] = this._fd_mutex[fd] || (this._fd_mutex[fd] = []);
+        const queue : FdLockEntry[] = this.fd_mutex[fd] || (this.fd_mutex[fd] = []);
 
         let resolve: () => void;
 
@@ -212,19 +200,19 @@ class TinyFS
             queue.push({ resolve: () => {}, promise: new Promise(() => {}) });
             queue.push({ resolve: resolve!, promise });
 
-            return () => this._unlockFd(fd);
+            return () => this.unlockFd(fd);
         }
 
         queue.push({ resolve: resolve!, promise });
 
         await queue[queue.length - 2]!.promise;
 
-        return () => this._unlockFd(fd);
+        return () => this.unlockFd(fd);
     }
 
-    _unlockFd (fd : int) : void
+    unlockFd (fd : int) : void
     {
-        const queue = this._fd_mutex[fd];
+        const queue = this.fd_mutex[fd];
 
         if (queue === undefined || queue.length === 0)
             return;
@@ -234,7 +222,7 @@ class TinyFS
         if (queue.length > 0)
             queue[0]!.resolve();
         else
-            this._fd_mutex[fd] = undefined;
+            this.fd_mutex[fd] = undefined;
     }
 
     /**
@@ -266,20 +254,20 @@ class TinyFS
             {
                 const db : IDBDatabase = (e.target as IDBOpenDBRequest).result;
 
-                if (db.objectStoreNames.contains(STORE_INODES) === false)
+                if (e.oldVersion < 1)
+                {
                     db.createObjectStore(STORE_INODES, { keyPath: "id", autoIncrement: true });
-
-                if (db.objectStoreNames.contains(STORE_BLOCKS) === false)
                     db.createObjectStore(STORE_BLOCKS, { keyPath: [ "inode_id", "block_index" ] });
+                }
             }
 
             function handleSuccess (
                 e : Event
             ) : void
             {
-                fs._fs_db = (e.target as IDBOpenDBRequest).result;
+                fs.fs_db = (e.target as IDBOpenDBRequest).result;
 
-                const tx       : IDBTransaction                = fs._fs_db.transaction([STORE_INODES], TX_READ_WRITE);
+                const tx       : IDBTransaction                = fs.fs_db.transaction([STORE_INODES], TX_READ_WRITE);
                 const store    : IDBObjectStore                = tx.objectStore(STORE_INODES);
                 const root_req : IDBRequest<INode | undefined> = store.get(ROOT_INODE);
 
@@ -313,7 +301,7 @@ class TinyFS
                 reject(-1);
             }
 
-            const req                 = indexedDB.open(db_name, 1);
+            const req                 = indexedDB.open(db_name, DB_VERSION);
                   req.onupgradeneeded = handleUpgrade;
                   req.onsuccess       = handleSuccess;
                   req.onerror         = handleError;
@@ -481,7 +469,8 @@ class TinyFS
 
         try
         {
-            normalized_path = new URL(path, "file:///").pathname;
+            const url : URL = new URL(path, "file:///");
+            normalized_path = url.href.slice(7); // For "file://".
         }
         catch
         {
@@ -515,9 +504,9 @@ class TinyFS
         {
             const test_path = "/" + target_parts.slice(0, i + 1).join("/");
 
-            if (this._dcache.has(test_path))
+            if (this.dcache.has(test_path))
             {
-                current_id   = this._dcache.get(test_path)!;
+                current_id   = this.dcache.get(test_path)!;
                 current_path = test_path;
                 match_idx    = i;
                 break;
@@ -547,7 +536,7 @@ class TinyFS
                 current_id = next_id;
                 current_path = current_path === "/" ? "/" + comp : current_path + "/" + comp;
 
-                this._dcache.set(current_path, current_id);
+                this.dcache.set(current_path, current_id);
             }
 
             result.id = current_id;
@@ -561,7 +550,7 @@ class TinyFS
 
                 if (verify === null)
                 {
-                    this._dcache.delete(current_path);
+                    this.dcache.delete(current_path);
                     return this._resolvePath(tx, path, parent_only);
                 }
             }
@@ -588,7 +577,7 @@ class TinyFS
     {
         try
         {
-            const tx  : IDBTransaction = this._fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
+            const tx  : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
             const res : PathResolution = await this._resolvePath(tx, path, false);
 
             if (res.id < 0)
@@ -626,7 +615,7 @@ class TinyFS
     {
         try
         {
-            const tx      : IDBTransaction = this._fs_db!.transaction([STORE_INODES], TX_READ_WRITE);
+            const tx      : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_WRITE);
             const old_res : PathResolution = await this._resolvePath(tx, oldpath, false);
 
             if (old_res.id < 0)
@@ -656,7 +645,7 @@ class TinyFS
             await this._putInode(tx, old_inode);
             await this._putInode(tx, parent_inode);
 
-            this._dcache.clear();
+            this.dcache.clear();
             return 0;
         }
         catch
@@ -682,7 +671,7 @@ class TinyFS
     {
         try
         {
-            const tx  : IDBTransaction = this._fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
+            const tx  : IDBTransaction = this.fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
             const res : PathResolution = await this._resolvePath(tx, path, true);
 
             if (res.id < 0 || res.name === "")
@@ -718,7 +707,7 @@ class TinyFS
                 await this._putInode(tx, child_inode);
             }
 
-            this._dcache.clear();
+            this.dcache.clear();
             return 0;
         }
         catch
@@ -740,7 +729,7 @@ class TinyFS
     {
         try
         {
-            const tx  : IDBTransaction = this._fs_db!.transaction([STORE_INODES], TX_READ_WRITE);
+            const tx  : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_WRITE);
             const res : PathResolution = await this._resolvePath(tx, path, true);
 
             if (res.id < 0 || res.name === "")
@@ -769,7 +758,7 @@ class TinyFS
             await this._putInode(tx, parent_inode);
             await this._deleteInode(tx, child_id);
 
-            this._dcache.clear();
+            this.dcache.clear();
             return 0;
         }
         catch
@@ -793,7 +782,7 @@ class TinyFS
     {
         try
         {
-            const tx  : IDBTransaction = this._fs_db!.transaction([STORE_INODES], TX_READ_WRITE);
+            const tx  : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_WRITE);
             const res : PathResolution = await this._resolvePath(tx, path, true);
 
             if (res.id < 0 || res.name === "")
@@ -813,7 +802,7 @@ class TinyFS
 
             await this._putInode(tx, parent_inode);
 
-            this._dcache.clear();
+            this.dcache.clear();
             return 0;
         }
         catch
@@ -847,7 +836,7 @@ class TinyFS
             const acc       : int            = flags & ACCESS_MODE;
             const read_only : boolean        = acc === READ && !(flags & CREATE) && !(flags & TRUNCATE);
             const stores    : string[]       = (flags & TRUNCATE) ? [STORE_INODES, STORE_BLOCKS] : [STORE_INODES];
-            const tx        : IDBTransaction = this._fs_db!.transaction(stores, read_only ? TX_READ_ONLY : TX_READ_WRITE);
+            const tx        : IDBTransaction = this.fs_db!.transaction(stores, read_only ? TX_READ_ONLY : TX_READ_WRITE);
             const res       : PathResolution = await this._resolvePath(tx, path, false);
 
             let target_id : int = res.id;
@@ -874,7 +863,7 @@ class TinyFS
 
                     target_id = new_inode.id!;
 
-                    this._dcache.clear();
+                    this.dcache.clear();
                 }
                 else
                 {
@@ -967,11 +956,11 @@ class TinyFS
         if ((flags & ACCESS_MODE) === WRITE)
             return -1;
 
-        const release : () => void = await this._lockFd(fd);
+        const release : () => void = await this.lockFd(fd);
 
         try
         {
-            const tx    : IDBTransaction = this._fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_ONLY);
+            const tx    : IDBTransaction = this.fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_ONLY);
             const inode : INode | null   = await this._getInode(tx, inode_id);
 
             if (inode === null)
@@ -1050,11 +1039,11 @@ class TinyFS
         if ((flags & ACCESS_MODE) === READ)
             return -1;
 
-        const release : () => void = await this._lockFd(fd);
+        const release : () => void = await this.lockFd(fd);
 
         try
         {
-            const tx    : IDBTransaction = this._fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
+            const tx    : IDBTransaction = this.fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
             const inode : INode | null   = await this._getInode(tx, inode_id);
 
             if (inode === null)
@@ -1158,7 +1147,7 @@ class TinyFS
             }
             else if (whence === END)
             {
-                const tx    : IDBTransaction = this._fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
+                const tx    : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
                 const inode : INode | null   = await this._getInode(tx, inode_id);
 
                 if (inode === null)
@@ -1193,7 +1182,7 @@ class TinyFS
     {
         try
         {
-            const tx  : IDBTransaction = this._fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
+            const tx  : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
             const res : PathResolution = await this._resolvePath(tx, path, false);
 
             if (res.id < 0)
@@ -1238,7 +1227,7 @@ class TinyFS
     {
         try
         {
-            const tx      : IDBTransaction = this._fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
+            const tx      : IDBTransaction = this.fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
             const old_res : PathResolution = await this._resolvePath(tx, oldpath, false);
 
             if (old_res.id < 0)
@@ -1307,7 +1296,7 @@ class TinyFS
 
             await this._putInode(tx, old_parent);
 
-            this._dcache.clear();
+            this.dcache.clear();
 
             return 0;
         }
@@ -1327,10 +1316,258 @@ class TinyFS
 
     shutdown () : void
     {
-        if (this._fs_db !== null)
+        if (this.fs_db !== null)
         {
-            this._fs_db.close();
-            this._fs_db = null;
+            this.fs_db.close();
+            this.fs_db = null;
         }
+    }
+
+    /**
+     * Serializes the entire filesystem into an ArrayBuffer for backup or
+     * transfer. The filesystem remains usable during export.
+     *
+     * @returns An ArrayBuffer containing the serialized filesystem.
+     */
+
+    async export () : Promise<ArrayBuffer>
+    {
+        const tx     : IDBTransaction = this.fs_db!.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_ONLY);
+        const is     : IDBObjectStore = tx.objectStore(STORE_INODES);
+        const bs     : IDBObjectStore = tx.objectStore(STORE_BLOCKS);
+        const inodes : INode[]        = await _idbRequest<INode[]>(is.getAll());
+        const blocks : FileBlock[]    = await _idbRequest<FileBlock[]>(bs.getAll());
+
+        let size : uint = TinyFS.HEADER_SIZE;
+
+        for (const inode of inodes)
+        {
+            size += 18;
+
+            if (inode.entries !== undefined)
+            {
+                for (const name of Object.keys(inode.entries))
+                    size += 2 + this.encoder.encode(name).length + 4;
+            }
+        }
+
+        for (const block of blocks)
+            size += 12 + block.data.length;
+
+        const buf    : ArrayBuffer = new ArrayBuffer(size);
+        const view   : DataView    = new DataView(buf);
+        let   offset : uint        = 0;
+
+        for (let i = 0; i < 8; i++)
+            view.setUint8(offset++, TinyFS.MAGIC[i]!);
+
+        view.setUint32(offset, DB_VERSION, true);
+        offset += 4;
+
+        view.setUint32(offset, inodes.length, true);
+        offset += 4;
+
+        view.setUint32(offset, blocks.length, true);
+        offset += 4;
+
+        for (const inode of inodes)
+        {
+            view.setInt32(offset, inode.id!, true);
+            offset += 4;
+
+            view.setInt32(offset, inode.mode, true);
+            offset += 4;
+
+            view.setUint32(offset, inode.nlink, true);
+            offset += 4;
+
+            view.setUint32(offset, inode.size, true);
+            offset += 4;
+
+            const names = inode.entries !== undefined ? Object.keys(inode.entries) : [];
+            view.setUint16(offset, names.length, true);
+            offset += 2;
+
+            for (const name of names)
+            {
+                const bytes : Uint8Array = this.encoder.encode(name);
+
+                view.setUint16(offset, bytes.length, true);
+                offset += 2;
+
+                for (let i = 0; i < bytes.length; i++)
+                    view.setUint8(offset++, bytes[i]!);
+
+                view.setInt32(offset, inode.entries![name]!, true);
+                offset += 4;
+            }
+        }
+
+        for (const block of blocks)
+        {
+            view.setInt32(offset, block.inode_id, true);
+            offset += 4;
+
+            view.setUint32(offset, block.block_index, true);
+            offset += 4;
+
+            view.setUint32(offset, block.data.length, true);
+            offset += 4;
+
+            for (let i = 0; i < block.data.length; i++)
+                view.setUint8(offset++, block.data[i]!);
+        }
+
+        return buf;
+    }
+
+    private static migrate (
+        data    : { inodes : INode[]; blocks : FileBlock[] },
+        fromVer : uint,
+        toVer   : uint
+    ) : void
+    {
+        // Stub: v1 is the initial version, no migration needed.
+    }
+
+    /**
+     * Creates a TinyFS filesystem from a previously exported ArrayBuffer.
+     * Any existing data in the database is replaced.
+     *
+     * @returns A new TinyFS instance populated from the serialized data.
+     */
+
+    static async import (
+        db_name : string,
+        data    : ArrayBuffer,
+        opts?   : TinyFSOptions
+    ) : Promise<TinyFS>
+    {
+        const view   : DataView = new DataView(data);
+        let   offset : uint     = 0;
+
+        for (let i = 0; i < 8; i++)
+        {
+            if (new Uint8Array(data, i, 1)[0] !== TinyFS.MAGIC[i])
+                throw new Error("Not a TinyFS blob");
+        }
+
+        offset += 8;
+
+        const version : uint = view.getUint32(offset, true);
+        offset += 4;
+
+        const inode_count : uint = view.getUint32(offset, true);
+        offset += 4;
+
+        const block_count : uint = view.getUint32(offset, true);
+        offset += 4;
+
+        const inodes : INode[] = [];
+
+        for (let i = 0; i < inode_count; i++)
+        {
+            const id : int = view.getInt32(offset, true);
+            offset += 4;
+
+            const mode : int = view.getInt32(offset, true);
+            offset += 4;
+
+            const nlink : uint = view.getUint32(offset, true);
+            offset += 4;
+
+            const size : uint = view.getUint32(offset, true);
+            offset += 4;
+
+            const ecount : uint = view.getUint16(offset, true);
+            offset += 2;
+
+            let entries : Record<string, int> | undefined;
+
+            if (ecount > 0)
+            {
+                entries = {};
+
+                for (let j = 0; j < ecount; j++)
+                {
+                    const nlen : uint = view.getUint16(offset, true);
+                    offset += 2;
+
+                    const nbytes : Uint8Array = new Uint8Array(data, offset, nlen);
+                    offset += nlen;
+
+                    const name    : string = new TextDecoder().decode(nbytes);
+                    const childId : int    = view.getInt32(offset, true);
+                    offset += 4;
+
+                    entries[name] = childId;
+                }
+            }
+
+            inodes.push({ id, mode, nlink, size, entries });
+        }
+
+        const blocks : FileBlock[] = [];
+
+        for (let i = 0; i < block_count; i++)
+        {
+            const inode_id : int  = view.getInt32(offset, true);
+            offset += 4;
+
+            const block_index : uint = view.getUint32(offset, true);
+            offset += 4;
+
+            const dlen : uint = view.getUint32(offset, true);
+            offset += 4;
+
+            const data_arr : Uint8Array = new Uint8Array(data, offset, dlen);
+            offset += dlen;
+
+            blocks.push({ inode_id, block_index, data: data_arr });
+        }
+
+        if (version < DB_VERSION)
+            TinyFS.migrate({ inodes, blocks }, version, DB_VERSION);
+
+        const fs = new TinyFS(opts);
+
+        await new Promise<void>((resolve, reject) => {
+            const req : IDBOpenDBRequest = indexedDB.open(db_name, DB_VERSION);
+
+            req.onupgradeneeded = (e : IDBVersionChangeEvent) : void => {
+                const db : IDBDatabase = (e.target as IDBOpenDBRequest).result;
+
+                if (e.oldVersion < 1)
+                {
+                    db.createObjectStore(STORE_INODES, { keyPath: "id", autoIncrement: true });
+                    db.createObjectStore(STORE_BLOCKS, { keyPath: [ "inode_id", "block_index" ] });
+                }
+            }
+
+            req.onsuccess = (e : Event) : void => {
+                fs.fs_db = (e.target as IDBOpenDBRequest).result;
+
+                const tx : IDBTransaction = fs.fs_db.transaction([STORE_INODES, STORE_BLOCKS], TX_READ_WRITE);
+
+                tx.objectStore(STORE_INODES).clear();
+                tx.objectStore(STORE_BLOCKS).clear();
+
+                const is : IDBObjectStore = tx.objectStore(STORE_INODES);
+                for (const inode of inodes)
+                    is.add(inode);
+
+                const bs : IDBObjectStore = tx.objectStore(STORE_BLOCKS);
+                for (const block of blocks)
+                    bs.add(block);
+
+                tx.oncomplete = () : void => resolve();
+                tx.onerror    = () : void => reject(-1);
+            }
+
+            req.onerror   = () : void => reject(-1);
+            req.onblocked = () : void => reject(-1);
+        });
+
+        return fs;
     }
 }

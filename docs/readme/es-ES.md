@@ -1,3 +1,6 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
@@ -5,9 +8,11 @@
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | **Español** | [Русский](./ru-RU.md)
 
+</div>
+
 **Resumen**
 
-En tinyfs, cada syscall que modifica estado se ejecuta dentro de una única transacción de IndexedDB. Si el navegador se bloquea, se supera la cuota o la pestaña se cierra a mitad de la operación, la transacción se revierte atómicamente. O bien la escritura de todos los bloques y la respectiva actualización de metadata se confirman juntas, o no se confirma ninguna. No existe la posibilidad de una escritura incompleta, un inode huérfano o un archivo cuyo tamaño no coincida con sus bloques.
+En TInyFS, cada syscall que modifica estado se ejecuta dentro de una única transacción de IndexedDB. Si el navegador se bloquea, se supera la cuota o la pestaña se cierra a mitad de la operación, la transacción se revierte atómicamente. O bien la escritura de todos los bloques y la respectiva actualización de metadata se confirman juntas, o no se confirma ninguna. No existe la posibilidad de una escritura incompleta, un inode huérfano o un archivo cuyo tamaño no coincida con sus bloques.
 
 **Características destacadas**
 
@@ -21,62 +26,18 @@ En tinyfs, cada syscall que modifica estado se ejecuta dentro de una única tran
 - Disponible en CommonJS, ESM y UMD.
 - Compatible con proyectos tanto de JavaScript puro como de TypeScript.
 
-## Instalación
+## Primeros pasos
+
+### Instalación
 
 ```bash
 > npm install tinyfs
 ```
 
-<details>
-<summary>Instalación con otros gestores de paquetes y entornos de ejecución</summary>
-
-### Instalación desde GitHub
-
-```bash
-> npm install bielok/tinyfs
-```
-
-Consulte la [documentación de instalación de npm](https://docs.npmjs.com/cli/v8/commands/npm-install).
-
-### Instalación con pnpm
-
-```bash
-> pnpm install tinyfs
-```
-
-Consulte la [documentación de instalación de pnpm](https://pnpm.io/cli/install).
-
-### Instalación con yarn
-
-```bash
-> yarn add tinyfs
-```
-
-Consulte la [documentación de yarn add](https://classic.yarnpkg.com/lang/en/docs/cli/add/).
-
-### Instalación con bun
-
-```bash
-> bun add tinyfs
-```
-
-Consulte la [documentación de bun add](https://bun.com/docs/pm/cli/add).
-
-### Instalación con deno
-
-```bash
-> deno install tinyfs
-```
-
-Consulte la [documentación de instalación de deno](https://docs.deno.com/runtime/reference/cli/install/).
-</details>
-
-## Uso
-
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -96,7 +57,7 @@ async function main() {
 ```html
 <script src="dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS } = window.tinyfs;
+    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -108,13 +69,13 @@ Todas las rutas son absolutas: deben comenzar con `/`. El directorio raíz es `/
 ### Ejemplo
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", CREATE | READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -174,8 +135,8 @@ Llena `buf` con `{ size, mode, nlink }` para la ruta dada. Devuelve 0 en caso de
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
+    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -199,13 +160,13 @@ Abre o crea un archivo y devuelve un descriptor de archivo. El argumento `flags`
 
 ```ts
 // Sobrescribir un archivo existente de forma atómica (borra el contenido anterior).
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
 
 // Abrir un archivo existente para lectura (falla con -1 si no existe).
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", READ);
 
 // Creación atómica (falla si ya existe).
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
 if (fd < 0) { /* otra instancia ya existe */ }
 ```
 
@@ -260,15 +221,15 @@ Reposiciona el desplazamiento del archivo. `whence` puede ser `SET` (absoluto de
 
 ```ts
 // Volver al principio.
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 // Saltar 100 bytes hacia adelante (p. ej., para leer un encabezado).
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, CURRENT);
 
 // Anexar: buscar más allá del final hasta el último byte. La siguiente
 // escritura extiende el archivo, produciendo una región dispersa entre
 // el tamaño anterior y el desplazamiento.
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, END);
 
 // Intentar buscar antes del inicio se fija a 0.
 ```

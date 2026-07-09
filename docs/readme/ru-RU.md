@@ -1,3 +1,6 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
@@ -9,10 +12,11 @@
 > Это экспериментальная идея — дайте знать, если она окажется полезной.
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | **Русский**
+</div>
 
 **Кратко**
 
-Каждый системный вызов tinyfs, изменяющий состояние, выполняется в рамках одной транзакции IndexedDB. Если браузер упадёт, закончится квота или вкладка закроется посередине операции, транзакция атомарно откатится: либо все записи блоков и обновление метаданных фиксируются вместе, либо ни одна из них. Невозможны разорванная запись, потерянный inode или файл, размер которого не соответствует его блокам.
+Каждый системный вызов TInyFS, изменяющий состояние, выполняется в рамках одной транзакции IndexedDB. Если браузер упадёт, закончится квота или вкладка закроется посередине операции, транзакция атомарно откатится: либо все записи блоков и обновление метаданных фиксируются вместе, либо ни одна из них. Невозможны разорванная запись, потерянный inode или файл, размер которого не соответствует его блокам.
 
 **Примечательные возможности**
 
@@ -26,62 +30,18 @@
 - Доступен в форматах CommonJS, ESM и UMD.
 - Совместим с проектами на чистом JavaScript и TypeScript.
 
-## Установка
+## Начало работы
+
+### Установка
 
 ```bash
 > npm install tinyfs
 ```
 
-<details>
-<summary>Установка с другими менеджерами пакетов и средами выполнения</summary>
-
-### Установка из GitHub
-
-```bash
-> npm install bielok/tinyfs
-```
-
-См. [документацию npm install](https://docs.npmjs.com/cli/v8/commands/npm-install).
-
-### Установка с pnpm
-
-```bash
-> pnpm install tinyfs
-```
-
-См. [документацию pnpm install](https://pnpm.io/cli/install).
-
-### Установка с yarn
-
-```bash
-> yarn add tinyfs
-```
-
-См. [документацию yarn add](https://classic.yarnpkg.com/lang/en/docs/cli/add/).
-
-### Установка с bun
-
-```bash
-> bun add tinyfs
-```
-
-См. [документацию bun add](https://bun.com/docs/pm/cli/add).
-
-### Установка с deno
-
-```bash
-> deno install tinyfs
-```
-
-См. [документацию deno install](https://docs.deno.com/runtime/reference/cli/install/).
-</details>
-
-## Использование
-
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -89,7 +49,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -101,7 +61,7 @@ async function main() {
 ```html
 <script src="dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS } = window.tinyfs;
+    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -113,13 +73,13 @@ async function main() {
 ### Пример
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", CREATE | READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -179,8 +139,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
+    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -204,13 +164,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // Атомарно перезаписать существующий файл (очищает старое содержимое).
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
 
 // Открыть существующий файл для чтения (возвращает -1, если файл отсутствует).
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", READ);
 
 // Атомарное создание (завершается ошибкой, если уже существует).
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
 if (fd < 0) { /* другой экземпляр уже существует */ }
 ```
 
@@ -265,15 +225,15 @@ if (n !== data.length)
 
 ```ts
 // Перейти в начало.
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 // Пропустить 100 байт вперёд (например, чтобы прочитать заголовок).
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, CURRENT);
 
 // Добавление: переместиться за конец файла к последнему байту. Следующая
 // запись расширит файл, создав разреженную область между старым
 // размером и новой позицией.
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, END);
 
 // Попытка переместиться до начала файла фиксируется на 0.
 ```

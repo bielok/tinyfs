@@ -1,13 +1,18 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
 *IndexedDB 기반으로 구축된, 브라우저에서 동작하는 검증된 파일 시스템입니다.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | **한국어** | [Español](./es-ES.md) | [Русский](./ru-RU.md)
+</div>
+
 
 **요약**
 
-tinyfs의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 내에서 실행됩니다. 브라우저가 충돌하거나, 할당량을 초과하거나, 작업 중간에 탭이 닫히면 트랜잭션은 원자적으로 롤백됩니다. 모든 블록 쓰기와 메타데이터 업데이트가 함께 커밋되거나, 전혀 커밋되지 않습니다. torn write, 댕글링 inode, 또는 크기가 블록과 일치하지 않는 파일이 발생하지 않습니다.
+TInyFS의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 내에서 실행됩니다. 브라우저가 충돌하거나, 할당량을 초과하거나, 작업 중간에 탭이 닫히면 트랜잭션은 원자적으로 롤백됩니다. 모든 블록 쓰기와 메타데이터 업데이트가 함께 커밋되거나, 전혀 커밋되지 않습니다. torn write, 댕글링 inode, 또는 크기가 블록과 일치하지 않는 파일이 발생하지 않습니다.
 
 **주요 기능**
 
@@ -21,62 +26,18 @@ tinyfs의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 �
 - CommonJS, ESM 및 UMD 배포판을 제공합니다.
 - 순수 JavaScript 및 TypeScript 프로젝트와 모두 호환됩니다.
 
-## 설치
+## 시작하기
+
+### 설치
 
 ```bash
 > npm install tinyfs
 ```
 
-<details>
-<summary>다른 패키지 매니저 및 런타임으로 설치하기</summary>
-
-### GitHub에서 설치
-
-```bash
-> npm install bielok/tinyfs
-```
-
-[npm 설치 문서](https://docs.npmjs.com/cli/v8/commands/npm-install)를 참조하세요.
-
-### pnpm으로 설치
-
-```bash
-> pnpm install tinyfs
-```
-
-[pnpm 설치 문서](https://pnpm.io/cli/install)를 참조하세요.
-
-### yarn으로 설치
-
-```bash
-> yarn add tinyfs
-```
-
-[yarn add 문서](https://classic.yarnpkg.com/lang/en/docs/cli/add/)를 참조하세요.
-
-### bun으로 설치
-
-```bash
-> bun add tinyfs
-```
-
-[bun add 문서](https://bun.com/docs/pm/cli/add)를 참조하세요.
-
-### deno로 설치
-
-```bash
-> deno install tinyfs
-```
-
-[deno 설치 문서](https://docs.deno.com/runtime/reference/cli/install/)를 참조하세요.
-</details>
-
-## 사용 방법
-
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -96,7 +57,7 @@ async function main() {
 ```html
 <script src="dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS } = window.tinyfs;
+    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -108,13 +69,13 @@ async function main() {
 ### 예제
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", CREATE | READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -174,8 +135,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
+    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -199,13 +160,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 기존 파일을 원자적으로 덮어씁니다(이전 내용 삭제).
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
 
 // 기존 파일을 읽기 전용으로 엽니다(없으면 -1 반환).
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", READ);
 
 // 원자적으로 생성——이미 있으면 실패.
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
 if (fd < 0) { /* 다른 인스턴스가 이미 존재함 */ }
 ```
 
@@ -260,14 +221,14 @@ if (n !== data.length)
 
 ```ts
 // 처음으로 되감기.
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 // 100바이트 앞으로 건너뛰기(예: 헤더 읽기).
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, CURRENT);
 
 // 추가——끝을 지나 마지막 바이트까지 시크. 다음 쓰기에서
 // 파일이 확장되어 이전 크기와 오프셋 사이에 스파스 영역이 생깁니다.
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, END);
 
 // 시작보다 앞으로 시크하려고 하면 0으로 고정됩니다.
 ```
