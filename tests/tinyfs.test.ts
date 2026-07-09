@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeAll, beforeEach } from "bun:test";
 import "fake-indexeddb/auto";
-import { APPEND, CREATE, CURRENT, DB_VERSION, END, EXCLUSIVE, READ, READ_WRITE, SET, TinyFS, TRUNCATE, TYPE_DIR, TYPE_FILE, TYPE_MASK, WRITE } from "../src/tinyfs.ts";
+import { APPEND, CREATE, CURRENT, END, EXCLUSIVE, FORMAT_VERSION, READ, READ_WRITE, SET, TinyFS, TRUNCATE, TYPE_DIR, TYPE_FILE, TYPE_MASK, WRITE } from "../src/tinyfs.ts";
 import type { StatBuf, DirEnt } from "../src/tinyfs.ts";
 
 let tfs : TinyFS;
@@ -967,15 +967,15 @@ describe("path normalization (URL edge cases)", () => {
 });
 
 describe("export / import", () => {
-    test("should have DB_VERSION property on instance", () => {
-        expect(DB_VERSION).toBe(1);
-    });
-
     test("should export and restore an empty filesystem", async () => {
-        const blob     : ArrayBuffer = await tfs.export();
-        const restored : TinyFS      = await TinyFS.import("export_empty", blob);
-        const sb       : StatBuf     = { size: 0, mode: 0, nlink: 0 };
-        const sret     : number      = await restored.stat("/", sb);
+        const blob : ArrayBuffer = await tfs.export();
+        const view : DataView    = new DataView(blob);
+
+        expect(view.getUint32(8, true)).toBe(FORMAT_VERSION);
+
+        const restored : TinyFS  = await TinyFS.import("export_empty", blob);
+        const sb       : StatBuf = { size: 0, mode: 0, nlink: 0 };
+        const sret     : number  = await restored.stat("/", sb);
 
         expect(sret).toBe(0);
         expect((sb.mode & TYPE_MASK)).toBe(TYPE_DIR);
@@ -993,9 +993,13 @@ describe("export / import", () => {
         await tfs.write(fd, data, 5);
         tfs.close(fd);
 
-        const blob     : ArrayBuffer = await tfs.export();
-        const restored : TinyFS      = await TinyFS.import("export_fs", blob);
-        const sb       : StatBuf     = { size: 0, mode: 0, nlink: 0 };
+        const blob      : ArrayBuffer = await tfs.export();
+        const blob_view : DataView    = new DataView(blob);
+
+        expect(blob_view.getUint32(8, true)).toBe(FORMAT_VERSION);
+
+        const restored : TinyFS  = await TinyFS.import("export_fs", blob);
+        const sb       : StatBuf = { size: 0, mode: 0, nlink: 0 };
 
         const sret_root : number = await restored.stat("/", sb);
         expect(sret_root).toBe(0);

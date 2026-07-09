@@ -118,6 +118,9 @@ export
 const DB_VERSION : uint = 1;
 
 export
+const FORMAT_VERSION : uint = 1;
+
+export
 const STORE_INODES : string = "inodes";
 
 export
@@ -1361,7 +1364,7 @@ class TinyFS
         for (let i = 0; i < 8; i++)
             view.setUint8(offset++, TinyFS.MAGIC[i]!);
 
-        view.setUint32(offset, DB_VERSION, true);
+        view.setUint32(offset, FORMAT_VERSION, true);
         offset += 4;
 
         view.setUint32(offset, inodes.length, true);
@@ -1526,8 +1529,8 @@ class TinyFS
             blocks.push({ inode_id, block_index, data: data_arr });
         }
 
-        if (version < DB_VERSION)
-            TinyFS.migrate({ inodes, blocks }, version, DB_VERSION);
+        if (version < FORMAT_VERSION)
+            TinyFS.migrate({ inodes, blocks }, version, FORMAT_VERSION);
 
         const fs = new TinyFS(opts);
 
