@@ -4,7 +4,7 @@
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*IndexedDB 기반으로 구축된, 브라우저에서 동작하는 검증된 파일 시스템입니다.*
+*IndexedDB 기반 브라우저 내 파일 시스템입니다.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | **한국어** | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 </div>
@@ -12,7 +12,7 @@
 
 **요약**
 
-TInyFS의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 내에서 실행됩니다. 브라우저가 충돌하거나, 할당량을 초과하거나, 작업 중간에 탭이 닫히면 트랜잭션은 원자적으로 롤백됩니다. 모든 블록 쓰기와 메타데이터 업데이트가 함께 커밋되거나, 전혀 커밋되지 않습니다. torn write, 댕글링 inode, 또는 크기가 블록과 일치하지 않는 파일이 발생하지 않습니다.
+TinyFS의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 내에서 실행됩니다. 브라우저가 충돌하거나, 할당량을 초과하거나, 작업 중간에 탭이 닫히면 트랜잭션은 원자적으로 롤백됩니다. 모든 블록 쓰기와 메타데이터 업데이트가 함께 커밋되거나, 전혀 커밋되지 않습니다. torn write, 댕글링 inode, 또는 크기가 블록과 일치하지 않는 파일이 발생하지 않습니다.
 
 **주요 기능**
 
@@ -31,7 +31,7 @@ TInyFS의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 �
 ### 설치
 
 ```bash
-> npm install tinyfs
+$ npm install @bielok/tinyfs
 ```
 
 ### ESM

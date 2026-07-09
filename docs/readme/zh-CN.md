@@ -4,14 +4,14 @@
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*一个构建在 IndexedDB 之上、久经考验的浏览器内文件系统。*
+*一个构建在 IndexedDB 之上的浏览器内文件系统。*
 
-**简体中文** | [English](../../README.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
+[English](../../README.md) | **简体中文** | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 </div>
 
-**摘要**
+**概要**
 
-TInyFS 的每一个修改状态的系统调用都在单个 IndexedDB 事务中执行。如果浏览器崩溃、超出配额限制或在操作中途关闭标签页，事务会原子性地回滚：要么所有块写入和元数据更新一起提交，要么全部不提交。不会出现 torn write、悬空 inode 或文件大小与块不匹配的情况。
+TinyFS 的每一个修改状态的系统调用都在单个 IndexedDB 事务中执行。如果浏览器崩溃、超出配额限制或在操作中途关闭标签页，事务会原子性地回滚：要么所有块写入和元数据更新一起提交，要么全部不提交。不会出现 torn write、悬空 inode 或文件大小与块不匹配的情况。
 
 **主要特性**
 
@@ -19,7 +19,7 @@ TInyFS 的每一个修改状态的系统调用都在单个 IndexedDB 事务中�
 - 零运行时依赖。
 - 少量仅用于测试的开发依赖。
 - 90% 以上的测试覆盖率。
-- 包含基础模糊测试器。
+- 包含基础模糊测试（fuzzer）。
 - 包含浏览器内原子性和并发测试。
 - 使用 Puppeteer 在 Chrome 中进行基准测试。
 - 提供 CommonJS、ESM 和 UMD 格式的分发包。
@@ -154,7 +154,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 | `TRUNCATE` | 打开时将文件大小置零 |
 | `APPEND` | 所有写入追加到文件末尾 |
 
-> **何时使用 TRUNCATE：** 当你需要原子性地清除文件所有现有内容时，传入 `TRUNCATE`。如果只需要读取文件或追加数据，则省略 `TRUNCATE`。没有 `TRUNCATE` 时打开操作使用较轻量的事务（可能为只读，且不包含 blocks 存储），减少与并发写入者的序列化冲突。
+> **何时使用 TRUNCATE：** 当你需要原子性地清除文件所有现有内容时，传入 `TRUNCATE`。如果只需要读取文件或追加数据，则省略 `TRUNCATE`。没有 `TRUNCATE` 时打开操作使用较轻量的事务（可能为只读，且不涉及 blocks 存储），减少与并发写入者的序列化冲突。
 
 ```ts
 // 原子性地覆写一个已有文件（清除旧内容）。
@@ -224,7 +224,7 @@ await tfs.lseek(fd, 0, SET);
 // 向前跳过 100 字节（例如读取头部信息）。
 await tfs.lseek(fd, 100, CURRENT);
 
-// 追加模式——跳过末尾到最后字节。下一次写入会扩展文件，
+// 追加场景下——将偏移量移到文件末尾之后。下一次写入会扩展文件，
 // 在旧大小和新偏移量之间产生稀疏区域。
 const size = await tfs.lseek(fd, 10, END);
 
@@ -284,7 +284,7 @@ if (await tfs.unlink("/tempfile") === 0)
 
 `link(oldpath, newpath)`
 
-创建一个指向与 `oldpath` 相同 inode 的硬链接。调用后两个名称可以互换使用——inode 会一直存在，直到两个链接都被删除。成功返回 0，出错返回 -1。不能为目录创建硬链接。
+创建一个指向与 `oldpath` 相同 inode 的硬链接。调用后两个名称完全等价——inode 会一直存在，直到两个链接都被删除。成功返回 0，出错返回 -1。不能为目录创建硬链接。
 
 ```ts
 // 两个名称，同一个 inode。
@@ -306,7 +306,7 @@ await tfs.unlink("/original");
 
 `rename(oldpath, newpath)`
 
-将文件从 `oldpath` 移动到 `newpath`。如果 `newpath` 已存在，它会被原子性地替换。不能重命名目录。成功返回 0，出错返回 -1。
+将文件从 `oldpath` 移动到 `newpath`。如果 `newpath` 已存在，会原子性地覆盖它。不能重命名目录。成功返回 0，出错返回 -1。
 
 ```ts
 // 简单重命名。
@@ -321,7 +321,7 @@ await tfs.rename("/new_config", "/config");
 ```bash
 bun run build     # 构建所有分发文件。
 bun test          # 运行单元测试和并发测试。
-bun run fuzz      # 运行随机操作模糊测试。
+bun run fuzz      # 运行随机操作模糊测试（fuzzer）。
 ```
 
 ## Benchmarks
