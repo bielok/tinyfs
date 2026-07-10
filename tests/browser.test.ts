@@ -113,6 +113,7 @@ describe("browser", () => {
         "rename overwrite existing target",
         "rename directory source returns -1",
         "rename target parent missing returns -1",
+        "export and import roundtrip",
     ])
     {
         test(name, async () => {

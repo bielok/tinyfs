@@ -1418,12 +1418,15 @@ class TinyFS
 
     static async import (
         db_name : string,
-        data    : ArrayBuffer,
+        data    : ArrayBufferLike,
         opts?   : TinyFSOptions
     ) : Promise<TinyFS>
     {
         const view   : DataView = new DataView(data);
         let   offset : uint     = 0;
+
+        if (data.byteLength < 8)
+            throw new Error("Not a TinyFS blob");
 
         for (let i = 0; i < 8; i++)
         {
@@ -1433,8 +1436,14 @@ class TinyFS
 
         offset += 8;
 
+        if (data.byteLength < TinyFS.HEADER_SIZE)
+            throw new Error("Truncated TinyFS blob: expected header");
+
         const version : uint = view.getUint32(offset, true);
         offset += 4;
+
+        if (version > FORMAT_VERSION)
+            throw new Error(`Unsupported TinyFS format version: ${version}`);
 
         const inode_count : uint = view.getUint32(offset, true);
         offset += 4;
@@ -1446,6 +1455,9 @@ class TinyFS
 
         for (let i = 0; i < inode_count; i++)
         {
+            if (offset + 18 > data.byteLength)
+                throw new Error("Truncated TinyFS blob");
+
             const id : int = view.getInt32(offset, true);
             offset += 4;
 
@@ -1461,6 +1473,9 @@ class TinyFS
             const ecount : uint = view.getUint16(offset, true);
             offset += 2;
 
+            if (ecount > inode_count)
+                throw new Error("Malformed TinyFS blob: entry count exceeds inode count");
+
             let entries : Record<string, int> | undefined;
 
             if (ecount > 0)
@@ -1469,8 +1484,14 @@ class TinyFS
 
                 for (let j = 0; j < ecount; j++)
                 {
+                    if (offset + 2 > data.byteLength)
+                        throw new Error("Truncated TinyFS blob");
+
                     const nlen : uint = view.getUint16(offset, true);
                     offset += 2;
+
+                    if (offset + nlen + 4 > data.byteLength)
+                        throw new Error("Truncated TinyFS blob");
 
                     const nbytes : Uint8Array = new Uint8Array(data, offset, nlen);
                     offset += nlen;
@@ -1490,6 +1511,9 @@ class TinyFS
 
         for (let i = 0; i < block_count; i++)
         {
+            if (offset + 12 > data.byteLength)
+                throw new Error("Truncated TinyFS blob");
+
             const inode_id : int  = view.getInt32(offset, true);
             offset += 4;
 
@@ -1498,6 +1522,9 @@ class TinyFS
 
             const dlen : uint = view.getUint32(offset, true);
             offset += 4;
+
+            if (offset + dlen > data.byteLength)
+                throw new Error("Truncated TinyFS blob");
 
             const data_arr : Uint8Array = new Uint8Array(data, offset, dlen);
             offset += dlen;

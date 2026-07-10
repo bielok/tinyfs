@@ -1058,3 +1058,53 @@ test("rename target parent missing returns -1", async function () {
     let ret = await tfs.rename("/rename_me", "/nope/b");
     return ok(ret, -1);
 });
+
+test("export and import roundtrip", async function () {
+    await tfs.mkdir("/rt_dir");
+    await tfs.mkdir("/rt_dir/sub");
+
+    let fd   = await tfs.open("/rt_dir/f", O.CREATE | O.READ_WRITE);
+    let data = new Uint8Array([1, 2, 3, 4, 5]);
+    let nw   = await tfs.write(fd, data, data.length);
+
+    if (nw !== data.length)
+        return "write returned " + nw;
+
+    tfs.close(fd);
+
+    let blob = await tfs.export();
+    if (!blob || blob.byteLength === 0)
+        return "export returned empty blob";
+
+    let { TinyFS } = window.tinyfs;
+    let restored   = await TinyFS.import("browser_roundtrip", blob);
+
+    let sb = { size: 0, mode: 0, nlink: 0 };
+
+    let sret = await restored.stat("/rt_dir", sb);
+    if (sret !== 0)
+        return "stat dir returned " + sret;
+
+    if ((sb.mode & O.TYPE_MASK) !== O.TYPE_DIR)
+        return "dir not a directory";
+
+    sret = await restored.stat("/rt_dir/sub", sb);
+    if (sret !== 0)
+        return "stat subdir returned " + sret;
+
+    let fd2 = await restored.open("/rt_dir/f", O.READ);
+    let buf = new Uint8Array(5);
+    let nr  = await restored.read(fd2, buf, 5);
+
+    if (nr !== 5)
+        return "read returned " + nr;
+
+    let err = okBuf(buf, data, 5);
+    if (err)
+        return err;
+
+    restored.close(fd2);
+    restored.shutdown();
+
+    return null;
+});

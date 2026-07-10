@@ -1146,19 +1146,159 @@ describe("export / import", () => {
         expect(threw).toBe(true);
     });
 
-    test("should reject invalid blob", async () => {
-        const garbage : ArrayBuffer = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]).buffer;
+    test("should reject header-only blob with inode count", async () => {
+        const buf   : Uint8Array = new Uint8Array(20);
+        const view  : DataView   = new DataView(buf.buffer);
 
-        let err : any;
+        buf.set(TinyFS.MAGIC);
 
-        try
-        {
-            await TinyFS.import("export_bad", garbage);
-        }
-        catch (e) { err = e; }
+        view.setUint32(8, FORMAT_VERSION, true);
 
-        expect(err).toBeTruthy();
-        expect((err as Error).message).toBe("Not a TinyFS blob");
+        view.setUint32(12, 1, true); // inode_count
+        view.setUint32(16, 0, true); // block_count
+
+        expect(await TinyFS.import("test_hdr_only", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject truncated inode after partial fixed fields", async () => {
+        const buf  : Uint8Array = new Uint8Array(24);
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 1, true); // inode_count
+        view.setUint32(16, 0, true); // block_count
+        view.setInt32(20, 1, true);  // 4 bytes of inode id (of 18 needed)
+
+        expect(await TinyFS.import("test_inode_part", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject inode with ecount but no entry data", async () => {
+        const buf  : Uint8Array = new Uint8Array(38); // 20 header + 18 inode fields
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 2, true);         // inode_count=2 (must be >= ecount)
+        view.setUint32(16, 0, true);         // block_count
+        view.setInt32(20, 1, true);          // id
+        view.setInt32(24, O.TYPE_DIR, true); // mode
+        view.setUint32(28, 1, true);         // nlink
+        view.setUint32(32, 0, true);         // size
+        view.setUint16(36, 2, true);         // ecount=2, but no entry data
+
+        expect(await TinyFS.import("test_ecount", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject entry with truncated name bytes", async () => {
+        const buf  : Uint8Array = new Uint8Array(40); // 20 + 18 + 2 (nlen)
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 1, true);         // inode_count
+        view.setUint32(16, 0, true);         // block_count
+        view.setInt32(20, 1, true);          // id
+        view.setInt32(24, O.TYPE_DIR, true); // mode
+        view.setUint32(28, 1, true);         // nlink
+        view.setUint32(32, 0, true);         // size
+        view.setUint16(36, 1, true);         // ecount=1
+        view.setUint16(38, 100, true);       // nlen=100, but no data follows
+
+        expect(await TinyFS.import("test_name_trunc", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject entry with name but no childId", async () => {
+        const name : Uint8Array = new TextEncoder().encode("foo");
+        const buf  : Uint8Array = new Uint8Array(20 + 18 + 2 + name.length); // missing 4-byte childId
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 1, true);           // inode_count
+        view.setUint32(16, 0, true);           // block_count
+        view.setInt32(20, 1, true);            // id
+        view.setInt32(24, O.TYPE_DIR, true);   // mode
+        view.setUint32(28, 1, true);           // nlink
+        view.setUint32(32, 0, true);           // size
+        view.setUint16(36, 1, true);           // ecount=1
+        view.setUint16(38, name.length, true); // nlen=3
+        buf.set(name, 40);                     // name bytes, but no childId
+
+        expect(await TinyFS.import("test_child_trunc", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject truncated block header", async () => {
+        const buf  : Uint8Array = new Uint8Array(28); // 20 header + 8 bytes of block (need 12)
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 0, true); // inode_count=0
+        view.setUint32(16, 1, true); // block_count=1
+        view.setInt32(20, 1, true);  // inode_id
+        view.setUint32(24, 0, true); // block_index (of 12 needed)
+
+        expect(await TinyFS.import("test_blk_hdr", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject block with data_len past buffer", async () => {
+        const buf  : Uint8Array = new Uint8Array(32); // 20 header + 12 block header, no data
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 0, true);   // inode_count=0
+        view.setUint32(16, 1, true);   // block_count=1
+        view.setInt32(20, 1, true);    // inode_id
+        view.setUint32(24, 0, true);   // block_index
+        view.setUint32(28, 999, true); // dlen=999, but no data
+
+        expect(await TinyFS.import("test_blk_data", buf.buffer)).rejects.toThrow("Truncated TinyFS blob");
+    });
+
+    test("should reject unsupported format version", async () => {
+        const buf  : Uint8Array = new Uint8Array(20);
+        const view : DataView   = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, 99, true); // future version
+        view.setUint32(12, 0, true);
+        view.setUint32(16, 0, true);
+
+        expect(await TinyFS.import("test_version", buf.buffer)).rejects.toThrow("Unsupported TinyFS format version: 99");
+    });
+
+    test("should reject entry count exceeding inode count", async () => {
+        const buf = new Uint8Array(38); // 20 header + 18 inode
+        const view = new DataView(buf.buffer);
+
+        buf.set(TinyFS.MAGIC);
+
+        view.setUint32(8, FORMAT_VERSION, true);
+
+        view.setUint32(12, 1, true);         // inode_count=1
+        view.setUint32(16, 0, true);         // block_count=0
+        view.setInt32(20, 1, true);          // id
+        view.setInt32(24, O.TYPE_DIR, true); // mode
+        view.setUint32(28, 1, true);         // nlink
+        view.setUint32(32, 0, true);         // size
+        view.setUint16(36, 2, true);         // ecount=2, but inode_count=1
+
+        expect(await TinyFS.import("test_ecount_bad", buf.buffer)).rejects.toThrow("Malformed TinyFS blob: entry count exceeds inode count");
     });
 });
 

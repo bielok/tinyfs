@@ -318,6 +318,25 @@ await tfs.rename("/tmp_download", "/final.txt");
 await tfs.rename("/new_config", "/config");
 ```
 
+`export()`
+
+전체 파일 시스템을 `ArrayBuffer`로 직렬화하여 백업 또는 전송에 사용합니다. 파일 시스템을 사용 중일 때 호출해도 안전합니다——export는 읽기 전용 IndexedDB 트랜잭션을 열어 동시 쓰기를 차단하지 않습니다.
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+이전에 내보낸 `ArrayBuffer`에서 TinyFS 파일 시스템을 생성합니다. 데이터베이스의 기존 데이터는 모두 대체됩니다.
+
+```ts
+const blob = await tfs.export();
+
+// … 나중에 또는 다른 애플리케이션에서:
+const restored = await TinyFS.import("my-db", blob);
+```
+
 ## 빌드 및 테스트 실행
 
 ```bash
