@@ -91,6 +91,11 @@ async function buildVariant (
         {
             code = code.substring(0, exportIdx) +
                    code.substring(exportIdx).replace(/^export\s+/, "return ");
+
+            // Convert "export { x as default }" output from tsc into a valid
+            // JS return statement with a quoted "default" key.
+
+            code = code.replace(/(\w+)\s+as\s+default\b/g, '"default": $1');
         }
 
         code = umdWrap(code, v.globalName);

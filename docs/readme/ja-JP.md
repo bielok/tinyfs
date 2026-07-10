@@ -1,13 +1,18 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*IndexedDB 上に構築された、ブラウザ内で動作する実績あるファイルシステム。*
+*IndexedDB 上に構築されたブラウザ内ファイルシステム。*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | **日本語** | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 
+</div>
+
 **概要**
 
-tinyfs のすべての状態変更システムコールは、単一の IndexedDB トランザクション内で実行されます。ブラウザがクラッシュしたり、クォータを超過したり、操作の途中でタブが閉じられた場合、トランザクションは原子的にロールバックします。すべてのブロック書き込みとメタデータ更新が一緒にコミットされるか、まったくコミットされないかのいずれかです。破損した書き込み、宙ぶらりんの inode、サイズがブロックと一致しないファイルは発生しません。
+TinyFS のすべての状態変更システムコールは、単一の IndexedDB トランザクション内で実行されます。ブラウザがクラッシュしたり、クォータを超過したり、操作の途中でタブが閉じられた場合、トランザクションは原子的にロールバックします。すべてのブロック書き込みとメタデータ更新が一緒にコミットされるか、まったくコミットされないかのいずれかです。破損した書き込み、宙ぶらりんの inode、サイズがブロックと一致しないファイルは発生しません。
 
 **主な機能**
 
@@ -21,62 +26,20 @@ tinyfs のすべての状態変更システムコールは、単一の IndexedDB
 - CommonJS、ESM、UMD の配布形態に対応。
 - 純粋な JavaScript と TypeScript の両方のプロジェクトに対応。
 
-## インストール
+## はじめに
+
+### インストール
 
 ```bash
-> npm install tinyfs
+$ npm install @bielok/tinyfs
 ```
 
-<details>
-<summary>他のパッケージマネージャーおよびランタイムでのインストール</summary>
 
-### GitHub からインストール
-
-```bash
-> npm install bielok/tinyfs
-```
-
-[npm インストールドキュメント](https://docs.npmjs.com/cli/v8/commands/npm-install) を参照してください。
-
-### pnpm でインストール
-
-```bash
-> pnpm install tinyfs
-```
-
-[pnpm インストールドキュメント](https://pnpm.io/cli/install) を参照してください。
-
-### yarn でインストール
-
-```bash
-> yarn add tinyfs
-```
-
-[yarn add ドキュメント](https://classic.yarnpkg.com/lang/en/docs/cli/add/) を参照してください。
-
-### bun でインストール
-
-```bash
-> bun add tinyfs
-```
-
-[bun add ドキュメント](https://bun.com/docs/pm/cli/add) を参照してください。
-
-### deno でインストール
-
-```bash
-> deno install tinyfs
-```
-
-[deno インストールドキュメント](https://docs.deno.com/runtime/reference/cli/install/) を参照してください。
-</details>
-
-## 使用法
 
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +47,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -94,7 +57,7 @@ async function main() {
 ### UMD（ブラウザ）
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
     const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
@@ -108,13 +71,13 @@ async function main() {
 ### 例
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -174,8 +137,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -199,13 +162,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 既存のファイルをアトミックに上書き（古い内容を消去）。
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 既存のファイルを読み取り専用で開く（存在しない場合は -1）。
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // アトミックに作成——既に存在する場合は失敗。
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* 別のインスタンスが既に存在する */ }
 ```
 
@@ -260,14 +223,14 @@ if (n !== data.length)
 
 ```ts
 // 先頭に戻る。
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // 100 バイト先にスキップ（例：ヘッダーを読むため）。
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // 追記——終端を越えて最後のバイトまでシーク。次の書き込みで
 // ファイルが拡張され、古いサイズとオフセットの間にスパース領域が生じる。
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // 先頭より前にシークしようとすると 0 に丸められる。
 ```
@@ -357,12 +320,31 @@ await tfs.rename("/tmp_download", "/final.txt");
 await tfs.rename("/new_config", "/config");
 ```
 
+`export()`
+
+ファイルシステム全体を `ArrayBuffer` にシリアライズして、バックアップや転送に使用します。ファイルシステムの使用中に呼び出しても安全です——export は読み取り専用の IndexedDB トランザクションを開くため、同時書き込みをブロックしません。
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+以前にエクスポートした `ArrayBuffer` から TinyFS ファイルシステムを作成します。データベース内の既存データはすべて置き換えられます。
+
+```ts
+const blob = await tfs.export();
+
+// … 後で、または別のアプリケーションで：
+const restored = await TinyFS.import("my-db", blob);
+```
+
 ## ビルドとテストの実行
 
 ```bash
-bun run build     # すべての配布物をビルドします。
-bun test          # 単体テストと並行性テストを実行します。
-bun run fuzz      # ランダム操作ファザーを実行します。
+bun run build # すべての配布物をビルドします。
+bun test      # 単体テストと並行性テストを実行します。
+bun run fuzz  # ランダム操作ファザーを実行します。
 ```
 
 ## Benchmarks

@@ -3,48 +3,15 @@ import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 
 let browser : Browser | null = null;
 let page    : Page | null    = null;
-let server  : any = null;
+let server  : any            = null;
 
-function findChrome () : string | null
+beforeAll(async () =>
 {
-    if (process.env.CHROME_PATH)
-        return process.env.CHROME_PATH;
-
-    const candidates : string[] = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        "/usr/bin/google-chrome",
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-    ];
-
-    for (const p of candidates)
-    {
-        try
-        {
-            const f = Bun.file(p);
-
-            if (f.size > 0)
-                return p;
-        }
-        catch {}
-    }
-
-    return null;
-}
-
-const chromePath : string | null = findChrome();
-
-beforeAll(async () => {
-    if (!chromePath)
-    {
-        console.warn("Chrome not found -- skipping browser tests. Set CHROME_PATH to specify a custom path.");
-        return;
-    }
-
     server = Bun.serve({
         port: 0,
-        async fetch (req : Request) : Promise<Response>
+        async fetch (
+            req : Request
+        ) : Promise<Response>
         {
             const url  = new URL(req.url);
             const file = Bun.file("." + url.pathname);
@@ -58,17 +25,16 @@ beforeAll(async () => {
 
     browser = await puppeteer.launch({
         headless: !process.env.NO_HEADLESS,
-        executablePath: chromePath,
+        channel: 'chrome',
         args: ["--no-sandbox", "--disable-web-security"],
     });
 
     page = await browser.newPage();
     await page.goto(`http://localhost:${server.port}/tests/browser-harness.html`);
     await page.waitForFunction("typeof window.__tests !== 'undefined'");
-    await page.evaluate(async () =>
-    {
-        const { TinyFS } = (window as any).tinyfs;
-        (window as any).tfs = await TinyFS.create("tinyfs");
+    await page.evaluate(async () => {
+        const { TinyFS } = window.tinyfs;
+        window.tfs = await TinyFS.create("tinyfs");
     });
 });
 
@@ -79,8 +45,6 @@ afterAll(async () => {
     if (server)
         server.stop();
 });
-
-const it = chromePath ? test : test.skip;
 
 describe("browser", () => {
     for (const name of [
@@ -149,11 +113,12 @@ describe("browser", () => {
         "rename overwrite existing target",
         "rename directory source returns -1",
         "rename target parent missing returns -1",
+        "export and import roundtrip",
     ])
     {
-        it(name, async () => {
+        test(name, async () => {
             const result = await page!.evaluate(
-                (n : string) => (window as any).__tests[n](),
+                (n : string) => window.__tests[n]!(),
                 name
             );
 

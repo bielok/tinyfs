@@ -1,3 +1,5 @@
+const { O } = window.tinyfs;
+
 var tfs = null;
 
 
@@ -66,7 +68,7 @@ var tfs = null;
                     tfs.close(i);
             }
 
-            tfs._dcache.clear();
+            tfs.dcache.clear();
 
             try
             {
@@ -104,7 +106,7 @@ var tfs = null;
     // must retain its pre-write content and size.
 
     test("write rolls back on block put failure", async function () {
-        let fd = await tfs.open("/tw", tfs.CREATE | tfs.READ_WRITE);
+        let fd = await tfs.open("/tw", O.CREATE | O.READ_WRITE);
         await tfs.write(fd, new Uint8Array([72, 105]), 2);
         tfs.close(fd);
 
@@ -114,7 +116,7 @@ var tfs = null;
 
         __atomicity.abortAfter(0);
 
-        fd = await tfs.open("/tw", tfs.READ_WRITE);
+        fd = await tfs.open("/tw", O.READ_WRITE);
 
         try
         {
@@ -131,7 +133,7 @@ var tfs = null;
         if (sb2.size !== sb.size)
             return "size changed from " + sb.size + " to " + sb2.size;
 
-        fd = await tfs.open("/tw", tfs.READ);
+        fd = await tfs.open("/tw", O.READ);
 
         let buf = new Uint8Array(10);
         let nr  = await tfs.read(fd, buf, 10);
@@ -177,7 +179,7 @@ var tfs = null;
     // its original size and content.
 
     test("unlink rolls back on parent update failure", async function () {
-        let fd = await tfs.open("/tu", tfs.CREATE | tfs.READ_WRITE);
+        let fd = await tfs.open("/tu", O.CREATE | O.READ_WRITE);
 
         await tfs.write(fd, new Uint8Array([65, 66, 67]), 3);
 
@@ -205,7 +207,7 @@ var tfs = null;
         if (sb2.size !== sb.size)
             return "size changed after failed unlink";
 
-        fd = await tfs.open("/tu", tfs.READ);
+        fd = await tfs.open("/tu", O.READ);
 
         let buf = new Uint8Array(10);
         let nr  = await tfs.read(fd, buf, 10);
@@ -226,7 +228,7 @@ var tfs = null;
     // must not.
 
     test("rename rolls back on first mutation failure", async function () {
-        let fd = await tfs.open("/tr_old", tfs.CREATE | tfs.READ_WRITE);
+        let fd = await tfs.open("/tr_old", O.CREATE | O.READ_WRITE);
 
         await tfs.write(fd, new Uint8Array([1, 2, 3]), 3);
         tfs.close(fd);
@@ -262,7 +264,7 @@ var tfs = null;
     // size and all data.
 
     test("TRUNCATE rolls back on size update failure", async function () {
-        let fd = await tfs.open("/tt", tfs.CREATE | tfs.READ_WRITE);
+        let fd = await tfs.open("/tt", O.CREATE | O.READ_WRITE);
 
         await tfs.write(fd, new Uint8Array(8192).fill(0xAA), 8192);
 
@@ -275,7 +277,7 @@ var tfs = null;
 
         try
         {
-            let fd2 = await tfs.open("/tt", tfs.TRUNCATE | tfs.READ_WRITE);
+            let fd2 = await tfs.open("/tt", O.TRUNCATE | O.READ_WRITE);
             tfs.close(fd2);
         } catch (e) {}
 
@@ -288,7 +290,7 @@ var tfs = null;
         if (sb2.size !== origSz)
             return "size changed from " + origSz + " to " + sb2.size;
 
-        fd = await tfs.open("/tt", tfs.READ);
+        fd = await tfs.open("/tt", O.READ);
 
         let buf = new Uint8Array(100);
         let nr  = await tfs.read(fd, buf, 100);

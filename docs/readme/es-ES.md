@@ -1,13 +1,18 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*Un sistema de archivos en navegador, probado y construido sobre IndexedDB.*
+*Un sistema de archivos para el navegador, probado y construido sobre IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | **Español** | [Русский](./ru-RU.md)
 
+</div>
+
 **Resumen**
 
-En tinyfs, cada syscall que modifica estado se ejecuta dentro de una única transacción de IndexedDB. Si el navegador se bloquea, se supera la cuota o la pestaña se cierra a mitad de la operación, la transacción se revierte atómicamente. O bien la escritura de todos los bloques y la respectiva actualización de metadata se confirman juntas, o no se confirma ninguna. No existe la posibilidad de una escritura incompleta, un inode huérfano o un archivo cuyo tamaño no coincida con sus bloques.
+En TInyFS, cada syscall que modifica estado se ejecuta dentro de una única transacción de IndexedDB. Si el navegador se bloquea, se supera la cuota o la pestaña se cierra a mitad de la operación, la transacción se revierte atómicamente. O bien la escritura de todos los bloques y la respectiva actualización de metadata se confirman juntas, o no se confirma ninguna. No existe la posibilidad de una escritura incompleta, un inode huérfano o un archivo cuyo tamaño no coincida con sus bloques.
 
 **Características destacadas**
 
@@ -21,62 +26,18 @@ En tinyfs, cada syscall que modifica estado se ejecuta dentro de una única tran
 - Disponible en CommonJS, ESM y UMD.
 - Compatible con proyectos tanto de JavaScript puro como de TypeScript.
 
-## Instalación
+## Primeros pasos
+
+### Instalación
 
 ```bash
-> npm install tinyfs
+$ npm install @bielok/tinyfs
 ```
-
-<details>
-<summary>Instalación con otros gestores de paquetes y entornos de ejecución</summary>
-
-### Instalación desde GitHub
-
-```bash
-> npm install bielok/tinyfs
-```
-
-Consulte la [documentación de instalación de npm](https://docs.npmjs.com/cli/v8/commands/npm-install).
-
-### Instalación con pnpm
-
-```bash
-> pnpm install tinyfs
-```
-
-Consulte la [documentación de instalación de pnpm](https://pnpm.io/cli/install).
-
-### Instalación con yarn
-
-```bash
-> yarn add tinyfs
-```
-
-Consulte la [documentación de yarn add](https://classic.yarnpkg.com/lang/en/docs/cli/add/).
-
-### Instalación con bun
-
-```bash
-> bun add tinyfs
-```
-
-Consulte la [documentación de bun add](https://bun.com/docs/pm/cli/add).
-
-### Instalación con deno
-
-```bash
-> deno install tinyfs
-```
-
-Consulte la [documentación de instalación de deno](https://docs.deno.com/runtime/reference/cli/install/).
-</details>
-
-## Uso
 
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -94,27 +55,27 @@ async function main() {
 ### UMD (navegador)
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
     const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
 
-## Cómo usar
+## Modo de uso
 
 Todas las rutas son absolutas: deben comenzar con `/`. El directorio raíz es `/`.
 
 ### Ejemplo
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -124,7 +85,7 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### API Reference
+### Referencia
 
 `TinyFS.create(db_name, opts?)`
 
@@ -174,8 +135,8 @@ Llena `buf` con `{ size, mode, nlink }` para la ruta dada. Devuelve 0 en caso de
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -199,13 +160,13 @@ Abre o crea un archivo y devuelve un descriptor de archivo. El argumento `flags`
 
 ```ts
 // Sobrescribir un archivo existente de forma atómica (borra el contenido anterior).
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Abrir un archivo existente para lectura (falla con -1 si no existe).
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // Creación atómica (falla si ya existe).
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* otra instancia ya existe */ }
 ```
 
@@ -260,15 +221,15 @@ Reposiciona el desplazamiento del archivo. `whence` puede ser `SET` (absoluto de
 
 ```ts
 // Volver al principio.
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // Saltar 100 bytes hacia adelante (p. ej., para leer un encabezado).
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // Anexar: buscar más allá del final hasta el último byte. La siguiente
 // escritura extiende el archivo, produciendo una región dispersa entre
 // el tamaño anterior y el desplazamiento.
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // Intentar buscar antes del inicio se fija a 0.
 ```
@@ -358,12 +319,31 @@ await tfs.rename("/tmp_download", "/final.txt");
 await tfs.rename("/new_config", "/config");
 ```
 
+`export()`
+
+Serializa todo el sistema de archivos en un `ArrayBuffer` para respaldo o transferencia. Es seguro llamarlo mientras el sistema de archivos está en uso — export abre una transacción de solo lectura de IndexedDB que no bloquea escrituras concurrentes.
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+Crea un sistema de archivos TinyFS a partir de un `ArrayBuffer` exportado previamente. Cualquier dato existente en la base de datos se reemplaza.
+
+```ts
+const blob = await tfs.export();
+
+// … más tarde, o en otra aplicación:
+const restored = await TinyFS.import("my-db", blob);
+```
+
 ## Compilación y ejecución de pruebas
 
 ```bash
-bun run build     # Compila todos los distributivos.
-bun test          # Ejecuta pruebas unitarias y de concurrencia.
-bun run fuzz      # Ejecuta el fuzzer de operaciones aleatorias.
+bun run build # Compila todos los distributivos.
+bun test      # Ejecuta pruebas unitarias y de concurrencia.
+bun run fuzz  # Ejecuta el fuzzer de operaciones aleatorias.
 ```
 
 ## Benchmarks
@@ -415,7 +395,7 @@ throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
 
-**NOTE**: Open bench.html to benchmark on other browsers.
+**NOTE**: Abre bench.html para probar el rendimiento en otros navegadores
 
 ## Licencia
 

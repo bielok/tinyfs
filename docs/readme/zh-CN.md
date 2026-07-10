@@ -1,13 +1,17 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*一个构建在 IndexedDB 之上、久经考验的浏览器内文件系统。*
+*一个构建在 IndexedDB 之上的浏览器内文件系统。*
 
-**简体中文** | [English](../../README.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
+[English](../../README.md) | **简体中文** | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
+</div>
 
-**摘要**
+**概要**
 
-tinyfs 的每一个修改状态的系统调用都在单个 IndexedDB 事务中执行。如果浏览器崩溃、超出配额限制或在操作中途关闭标签页，事务会原子性地回滚：要么所有块写入和元数据更新一起提交，要么全部不提交。不会出现 torn write、悬空 inode 或文件大小与块不匹配的情况。
+TinyFS 的每一个修改状态的系统调用都在单个 IndexedDB 事务中执行。如果浏览器崩溃、超出配额限制或在操作中途关闭标签页，事务会原子性地回滚：要么所有块写入和元数据更新一起提交，要么全部不提交。不会出现 torn write、悬空 inode 或文件大小与块不匹配的情况。
 
 **主要特性**
 
@@ -15,68 +19,23 @@ tinyfs 的每一个修改状态的系统调用都在单个 IndexedDB 事务中�
 - 零运行时依赖。
 - 少量仅用于测试的开发依赖。
 - 90% 以上的测试覆盖率。
-- 包含基础模糊测试器。
+- 包含基础模糊测试（fuzzer）。
 - 包含浏览器内原子性和并发测试。
 - 使用 Puppeteer 在 Chrome 中进行基准测试。
 - 提供 CommonJS、ESM 和 UMD 格式的分发包。
 - 兼容纯 JavaScript 和 TypeScript 项目。
+## 快速入门
 
-## 安装
-
-```bash
-> npm install tinyfs
-```
-
-<details>
-<summary>使用其他包管理器和运行时安装</summary>
-
-### 从 GitHub 安装
+### 安装
 
 ```bash
-> npm install bielok/tinyfs
+$ npm install @bielok/tinyfs
 ```
-
-参见 [npm 安装文档](https://docs.npmjs.com/cli/v8/commands/npm-install)。
-
-### 使用 pnpm 安装
-
-```bash
-> pnpm install tinyfs
-```
-
-参见 [pnpm 安装文档](https://pnpm.io/cli/install)。
-
-### 使用 yarn 安装
-
-```bash
-> yarn add tinyfs
-```
-
-参见 [yarn 添加文档](https://classic.yarnpkg.com/lang/en/docs/cli/add/)。
-
-### 使用 bun 安装
-
-```bash
-> bun add tinyfs
-```
-
-参见 [bun 添加文档](https://bun.com/docs/pm/cli/add)。
-
-### 使用 deno 安装
-
-```bash
-> deno install tinyfs
-```
-
-参见 [deno 安装文档](https://docs.deno.com/runtime/reference/cli/install/)。
-</details>
-
-## 使用方式
 
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +43,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -94,7 +53,7 @@ async function main() {
 ### UMD（浏览器）
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
     const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
@@ -108,13 +67,13 @@ async function main() {
 ### 示例
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -174,8 +133,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -195,17 +154,17 @@ if (await tfs.stat("/foo", sb) === 0) {
 | `TRUNCATE` | 打开时将文件大小置零 |
 | `APPEND` | 所有写入追加到文件末尾 |
 
-> **何时使用 TRUNCATE：** 当你需要原子性地清除文件所有现有内容时，传入 `TRUNCATE`。如果只需要读取文件或追加数据，则省略 `TRUNCATE`。没有 `TRUNCATE` 时打开操作使用较轻量的事务（可能为只读，且不包含 blocks 存储），减少与并发写入者的序列化冲突。
+> **何时使用 TRUNCATE：** 当你需要原子性地清除文件所有现有内容时，传入 `TRUNCATE`。如果只需要读取文件或追加数据，则省略 `TRUNCATE`。没有 `TRUNCATE` 时打开操作使用较轻量的事务（可能为只读，且不涉及 blocks 存储），减少与并发写入者的序列化冲突。
 
 ```ts
 // 原子性地覆写一个已有文件（清除旧内容）。
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 以只读方式打开已有文件（不存在时返回 -1）。
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // 原子性创建——如果已存在则失败。
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* 另一个实例已存在 */ }
 ```
 
@@ -260,14 +219,14 @@ if (n !== data.length)
 
 ```ts
 // 回到开头。
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // 向前跳过 100 字节（例如读取头部信息）。
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
-// 追加模式——跳过末尾到最后字节。下一次写入会扩展文件，
+// 追加场景下——将偏移量移到文件末尾之后。下一次写入会扩展文件，
 // 在旧大小和新偏移量之间产生稀疏区域。
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // 尝试定位到起始位置之前会限制为 0。
 ```
@@ -325,7 +284,7 @@ if (await tfs.unlink("/tempfile") === 0)
 
 `link(oldpath, newpath)`
 
-创建一个指向与 `oldpath` 相同 inode 的硬链接。调用后两个名称可以互换使用——inode 会一直存在，直到两个链接都被删除。成功返回 0，出错返回 -1。不能为目录创建硬链接。
+创建一个指向与 `oldpath` 相同 inode 的硬链接。调用后两个名称完全等价——inode 会一直存在，直到两个链接都被删除。成功返回 0，出错返回 -1。不能为目录创建硬链接。
 
 ```ts
 // 两个名称，同一个 inode。
@@ -347,7 +306,7 @@ await tfs.unlink("/original");
 
 `rename(oldpath, newpath)`
 
-将文件从 `oldpath` 移动到 `newpath`。如果 `newpath` 已存在，它会被原子性地替换。不能重命名目录。成功返回 0，出错返回 -1。
+将文件从 `oldpath` 移动到 `newpath`。如果 `newpath` 已存在，会原子性地覆盖它。不能重命名目录。成功返回 0，出错返回 -1。
 
 ```ts
 // 简单重命名。
@@ -357,12 +316,31 @@ await tfs.rename("/tmp_download", "/final.txt");
 await tfs.rename("/new_config", "/config");
 ```
 
+`export()`
+
+将整个文件系统序列化为 `ArrayBuffer`，用于备份或传输。在文件系统使用中调用是安全的——export 打开只读的 IndexedDB 事务，不会阻塞并发写入。
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+从之前导出的 `ArrayBuffer` 创建一个 TinyFS 文件系统。数据库中任何现有数据都会被替换。
+
+```ts
+const blob = await tfs.export();
+
+// … 之后或在另一个应用程序中：
+const restored = await TinyFS.import("my-db", blob);
+```
+
 ## 构建与运行测试
 
 ```bash
-bun run build     # 构建所有分发文件。
-bun test          # 运行单元测试和并发测试。
-bun run fuzz      # 运行随机操作模糊测试。
+bun run build # 构建所有分发文件。
+bun test      # 运行单元测试和并发测试。
+bun run fuzz  # 运行随机操作模糊测试（fuzzer）。
 ```
 
 ## Benchmarks

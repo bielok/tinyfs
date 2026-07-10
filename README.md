@@ -1,3 +1,6 @@
+<div align="center">
+<br>
+
 ![TinyFS](.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](.github/tinyfs_dark.svg#gh-dark-mode-only)
 
@@ -6,13 +9,14 @@
 
 *An in-browser filesystem built on IndexedDB.*
 
-> Hey there! This is a bit of an experimental idea, let me know if you find it useful.
-
 English | [简体中文](./docs/readme/zh-CN.md) | [繁體中文](./docs/readme/zh-TW.md) | [日本語](./docs/readme/ja-JP.md) | [한국어](./docs/readme/ko-KR.md) | [Español](./docs/readme/es-ES.md) | [Русский](./docs/readme/ru-RU.md)
+</div>
+
+> Hey there! This is a bit of an experimental idea, let me know if you find it useful.
 
 **Summary**
 
-Every tinyfs syscall that modifies state executes within a single IndexedDB
+Every TInyFS syscall that modifies state executes within a single IndexedDB
 transaction. If the browser crashes, runs out of quota, or the tab is closed
 mid-operation, the transaction atomically rolls back: either all block writes
 and the metadata update commit together, or none of them do. There is no path
@@ -31,13 +35,14 @@ blocks.
 - CommonJS, ESM and UMD distributables.
 - Compatible with both pure JavaScript and TypeScript projects.
 
-## Installation
+
+## Getting started
+
+### Installation
 
 ```bash
 $ npm install @bielok/tinyfs
 ```
-
-## Usage
 
 ### ESM
 
@@ -74,13 +79,13 @@ All paths are absolute: they must start with `/`. The root directory is `/`.
 ### Example
 
 ```ts
-import { TinyFS } from "@bielok/tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -145,8 +150,8 @@ directory.
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -175,13 +180,13 @@ argument is a bitmask; combine constants with `|`:
 
 ```ts
 // Overwrite an existing file atomically (clears old content).
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Open an existing file for reading (fails with -1 if missing).
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // Atomically create (fails if already exists).
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* another instance already exists */ }
 ```
 
@@ -245,14 +250,14 @@ to end of file). Returns the new offset, or -1 on error.
 
 ```ts
 // Rewind to the beginning.
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // Skip ahead 100 bytes (e.g., to read a header).
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // Append: seek past the end to the last byte. The next write extends
 // the file, producing a sparse region between the old size and offset.
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // Attempting to seek before the start clamps to 0.
 ```
@@ -351,6 +356,28 @@ await tfs.rename("/tmp_download", "/final.txt");
 
 // Atomic replace (overwrites target if it exists).
 await tfs.rename("/new_config", "/config");
+```
+
+`export()`
+
+Serialises the entire filesystem into an `ArrayBuffer` for backup or transfer.
+It is safe to call while the filesystem is in use — export opens a read-only
+IndexedDB transaction that does not block concurrent writes.
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+Creates a TinyFS filesystem from a previously exported `ArrayBuffer`.
+Any existing data in the database is replaced.
+
+```ts
+const blob = await tfs.export();
+
+// … later, or in another application:
+const restored = await TinyFS.import("my-db", blob);
 ```
 
 ## Building & Running tests

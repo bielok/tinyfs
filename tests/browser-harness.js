@@ -1,3 +1,5 @@
+const { O } = window.tinyfs;
+
 window.__tests = {};
 var tfs = null;
 
@@ -12,7 +14,7 @@ function test(name, fn)
                 tfs.close(i);
         }
 
-        tfs._dcache.clear();
+        tfs.dcache.clear();
 
         try
         {
@@ -54,7 +56,7 @@ test("stat root directory", async function () {
     if (ret !== 0)
         return "stat returned " + ret;
 
-    if ((buf.mode & tfs.TYPE_MASK) !== tfs.TYPE_DIR)
+    if ((buf.mode & O.TYPE_MASK) !== O.TYPE_DIR)
         return "not a directory";
 
     if (buf.nlink !== 1)
@@ -79,14 +81,14 @@ test("stat a new directory", async function () {
     if (ret !== 0)
         return "stat returned " + ret;
 
-    if ((buf.mode & tfs.TYPE_MASK) !== tfs.TYPE_DIR)
+    if ((buf.mode & O.TYPE_MASK) !== O.TYPE_DIR)
         return "not a directory";
 
     return null;
 });
 
 test("stat a regular file", async function () {
-    let fd = await tfs.open("/statfile", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/statfile", O.CREATE | O.READ_WRITE);
 
     await tfs.write(fd, new Uint8Array([1, 2, 3, 4, 5]), 5);
 
@@ -98,7 +100,7 @@ test("stat a regular file", async function () {
     if (ret !== 0)
         return "stat returned " + ret;
 
-    if ((buf.mode & tfs.TYPE_MASK) !== tfs.TYPE_FILE)
+    if ((buf.mode & O.TYPE_MASK) !== O.TYPE_FILE)
         return "not a regular file";
 
     if (buf.size !== 5)
@@ -147,7 +149,7 @@ test("rmdir on root returns -1", async function () {
 });
 
 test("rmdir on regular file returns -1", async function () {
-    let fd = await tfs.open("/rmfile", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/rmfile", O.CREATE | O.READ_WRITE);
     tfs.close(fd);
     let ret = await tfs.rmdir("/rmfile");
     return ok(ret, -1);
@@ -156,7 +158,7 @@ test("rmdir on regular file returns -1", async function () {
 // Test open / close operations.
 
 test("open with CREATE succeeds", async function () {
-    let fd = await tfs.open("/f", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/f", O.CREATE | O.READ_WRITE);
 
     if (fd < 0)
         return "open returned " + fd;
@@ -176,34 +178,34 @@ test("close invalid fd returns -1", function () {
 });
 
 test("EXCLUSIVE fails on existing file", async function () {
-    let fd1 = await tfs.open("/exclf", tfs.CREATE | tfs.READ_WRITE);
+    let fd1 = await tfs.open("/exclf", O.CREATE | O.READ_WRITE);
     tfs.close(fd1);
-    let fd2 = await tfs.open("/exclf", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+    let fd2 = await tfs.open("/exclf", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
     return ok(fd2, -1);
 });
 
 test("open dir with WRONLY returns -1", async function () {
     await tfs.mkdir("/odir");
-    let fd = await tfs.open("/odir", tfs.WRITE);
+    let fd = await tfs.open("/odir", O.WRITE);
     return ok(fd, -1);
 });
 
 test("open without CREATE on missing file returns -1", async function () {
-    let fd = await tfs.open("/nope", tfs.READ_WRITE);
+    let fd = await tfs.open("/nope", O.READ_WRITE);
     return ok(fd, -1);
 });
 
 // Test write / read operations.
 
 test("write and read back", async function () {
-    let fd   = await tfs.open("/hello", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/hello", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array([72, 101, 108, 108, 111]);
     let nw   = await tfs.write(fd, data, data.length);
 
     if (nw !== data.length)
         return "wrote " + nw + " expected " + data.length;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(64);
     let nr  = await tfs.read(fd, buf, 64);
@@ -215,7 +217,7 @@ test("write and read back", async function () {
 });
 
 test("read 0 bytes at EOF on fresh file", async function () {
-    let fd  = await tfs.open("/empty", tfs.CREATE | tfs.READ_WRITE);
+    let fd  = await tfs.open("/empty", O.CREATE | O.READ_WRITE);
     let buf = new Uint8Array(10);
     let nr  = await tfs.read(fd, buf, 10);
 
@@ -227,14 +229,14 @@ test("read 0 bytes at EOF on fresh file", async function () {
 });
 
 test("write across block boundary", async function () {
-    let fd   = await tfs.open("/big", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/big", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array(tfs.block_size + 100).fill(0x42);
     let nw   = await tfs.write(fd, data, data.length);
 
     if (nw !== data.length)
         return "wrote " + nw + " expected " + data.length;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(data.length);
     let nr  = await tfs.read(fd, buf, data.length);
@@ -246,7 +248,7 @@ test("write across block boundary", async function () {
 });
 
 test("READ rejects writes", async function () {
-    let fd = await tfs.open("/ro", tfs.CREATE | tfs.READ);
+    let fd = await tfs.open("/ro", O.CREATE | O.READ);
     let nw = await tfs.write(fd, new Uint8Array([1]), 1);
 
     if (nw !== -1)
@@ -257,7 +259,7 @@ test("READ rejects writes", async function () {
 });
 
 test("WRITE rejects reads", async function () {
-    let fd = await tfs.open("/wo", tfs.CREATE | tfs.WRITE);
+    let fd = await tfs.open("/wo", O.CREATE | O.WRITE);
     let nr = await tfs.read(fd, new Uint8Array(1), 1);
 
     if (nr !== -1)
@@ -268,7 +270,7 @@ test("WRITE rejects reads", async function () {
 });
 
 test("write 0 bytes returns 0", async function () {
-    let fd = await tfs.open("/zero", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/zero", O.CREATE | O.READ_WRITE);
     let nw = await tfs.write(fd, new Uint8Array(0), 0);
 
     if (nw !== 0)
@@ -281,19 +283,19 @@ test("write 0 bytes returns 0", async function () {
 // Test lseek operations.
 
 test("lseek SET CURRENT END", async function () {
-    let fd = await tfs.open("/seek", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/seek", O.CREATE | O.READ_WRITE);
 
     await tfs.write(fd, new Uint8Array(100).fill(0xFF), 100);
 
-    let off1 = await tfs.lseek(fd, 10, tfs.SET);
+    let off1 = await tfs.lseek(fd, 10, O.SET);
     if (off1 !== 10)
         return "SET returned " + off1;
 
-    let off2 = await tfs.lseek(fd, 5, tfs.CURRENT);
+    let off2 = await tfs.lseek(fd, 5, O.CURRENT);
     if (off2 !== 15)
         return "CURRENT returned " + off2;
 
-    let off3 = await tfs.lseek(fd, 0, tfs.END);
+    let off3 = await tfs.lseek(fd, 0, O.END);
     if (off3 !== 100)
         return "END returned " + off3;
 
@@ -302,7 +304,7 @@ test("lseek SET CURRENT END", async function () {
 });
 
 test("lseek invalid whence returns -1", async function () {
-    let fd  = await tfs.open("/lseekbad", tfs.CREATE | tfs.READ_WRITE);
+    let fd  = await tfs.open("/lseekbad", O.CREATE | O.READ_WRITE);
     let ret = await tfs.lseek(fd, 0, 99);
 
     if (ret !== -1)
@@ -315,7 +317,7 @@ test("lseek invalid whence returns -1", async function () {
 // Test link / unlink operations.
 
 test("hard link preserves data", async function () {
-    let fd   = await tfs.open("/a", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/a", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array([1, 2, 3]);
 
     await tfs.write(fd, data, 3);
@@ -325,7 +327,7 @@ test("hard link preserves data", async function () {
     if (ret !== 0)
         return "link returned " + ret;
 
-    let fd2 = await tfs.open("/b", tfs.READ_WRITE);
+    let fd2 = await tfs.open("/b", O.READ_WRITE);
     let buf = new Uint8Array(3);
 
     await tfs.read(fd2, buf, 3);
@@ -343,13 +345,13 @@ test("unlink directory returns -1", async function () {
 // Test TRUNCATE operations.
 
 test("TRUNCATE clears file", async function () {
-    let fd = await tfs.open("/truncf", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/truncf", O.CREATE | O.READ_WRITE);
 
     await tfs.write(fd, new Uint8Array(100).fill(0xAA), 100);
 
     tfs.close(fd);
 
-    let fd2 = await tfs.open("/truncf", tfs.TRUNCATE | tfs.READ_WRITE);
+    let fd2 = await tfs.open("/truncf", O.TRUNCATE | O.READ_WRITE);
     let buf = { size: 0, mode: 0, nlink: 0 };
 
     await tfs.stat("/truncf", buf);
@@ -365,7 +367,7 @@ test("TRUNCATE clears file", async function () {
 // Test APPEND operations.
 
 test("APPEND appends regardless of seek", async function () {
-    let fd   = await tfs.open("/append", tfs.CREATE | tfs.READ_WRITE | tfs.APPEND);
+    let fd   = await tfs.open("/append", O.CREATE | O.READ_WRITE | O.APPEND);
     let a    = new Uint8Array([65, 66]);
     let b    = new Uint8Array([67, 68]);
     let abcd = new Uint8Array([65, 66, 67, 68]);
@@ -374,13 +376,13 @@ test("APPEND appends regardless of seek", async function () {
     if (nw1 !== 2)
         return "first write returned " + nw1;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let nw2 = await tfs.write(fd, b, 2);
     if (nw2 !== 2)
         return "second write returned " + nw2;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(4);
     let nr  = await tfs.read(fd, buf, 4);
@@ -410,7 +412,7 @@ test("readdir lists entries", async function () {
 });
 
 test("readdir on regular file returns -1", async function () {
-    let fd = await tfs.open("/rdirfile", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/rdirfile", O.CREATE | O.READ_WRITE);
     tfs.close(fd);
 
     let ret = await tfs.readdir("/rdirfile");
@@ -420,7 +422,7 @@ test("readdir on regular file returns -1", async function () {
 // Test rename operations.
 
 test("rename preserves data", async function () {
-    let fd   = await tfs.open("/old", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/old", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array([65, 66, 67]);
 
     await tfs.write(fd, data, 3);
@@ -437,7 +439,7 @@ test("rename preserves data", async function () {
     if (sret !== -1)
         return "old should be gone";
 
-    let fd2 = await tfs.open("/new", tfs.READ_WRITE);
+    let fd2 = await tfs.open("/new", O.READ_WRITE);
     let buf = new Uint8Array(3);
 
     await tfs.read(fd2, buf, 3);
@@ -465,7 +467,7 @@ test("exhaust fd table gracefully", async function () {
 
     for (let i = 0; i < tfs.max_fd; i++)
     {
-        let fd = await tfs.open("/fde_" + i, tfs.CREATE | tfs.READ_WRITE);
+        let fd = await tfs.open("/fde_" + i, O.CREATE | O.READ_WRITE);
 
         if (fd < 0)
             break;
@@ -476,7 +478,7 @@ test("exhaust fd table gracefully", async function () {
     if (fds.length !== tfs.max_fd)
         return "got " + fds.length + " fds expected " + tfs.max_fd;
 
-    let extra = await tfs.open("/fde_extra", tfs.CREATE | tfs.READ_WRITE);
+    let extra = await tfs.open("/fde_extra", O.CREATE | O.READ_WRITE);
     if (extra !== -1)
         return "extra open should return -1 got " + extra;
 
@@ -487,11 +489,11 @@ test("exhaust fd table gracefully", async function () {
 // Test write/read edge cases operations.
 
 test("handle partial read", async function () {
-    let fd   = await tfs.open("/partial", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/partial", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array(100).fill(0xAB);
 
     await tfs.write(fd, data, 100);
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(30);
     let nr  = await tfs.read(fd, buf, 30);
@@ -514,15 +516,15 @@ test("handle partial read", async function () {
 });
 
 test("overwrite at offset after seek", async function () {
-    let fd = await tfs.open("/rw", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/rw", O.CREATE | O.READ_WRITE);
     let a  = new Uint8Array([1, 2, 3]);
     let b  = new Uint8Array([4, 5, 6]);
 
     await tfs.write(fd, a, 3);
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
     await tfs.write(fd, b, 3);
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(6);
     let nr  = await tfs.read(fd, buf, 6);
@@ -537,7 +539,7 @@ test("overwrite at offset after seek", async function () {
 test("write on directory fd returns -1", async function () {
     await tfs.mkdir("/writedir");
 
-    let fd = await tfs.open("/writedir", tfs.READ);
+    let fd = await tfs.open("/writedir", O.READ);
     let nw = await tfs.write(fd, new Uint8Array([1]), 1);
 
     tfs.close(fd);
@@ -545,7 +547,7 @@ test("write on directory fd returns -1", async function () {
 });
 
 test("read 0 bytes returns 0", async function () {
-    let fd  = await tfs.open("/r0", tfs.CREATE | tfs.READ_WRITE);
+    let fd  = await tfs.open("/r0", O.CREATE | O.READ_WRITE);
     let buf = new Uint8Array(0);
     let nr  = await tfs.read(fd, buf, 0);
 
@@ -556,7 +558,7 @@ test("read 0 bytes returns 0", async function () {
 test("read on directory fd returns -1", async function () {
     await tfs.mkdir("/readdirfd");
 
-    let fd = await tfs.open("/readdirfd", tfs.READ);
+    let fd = await tfs.open("/readdirfd", O.READ);
     let nr = await tfs.read(fd, new Uint8Array(1), 1);
 
     tfs.close(fd);
@@ -566,14 +568,14 @@ test("read on directory fd returns -1", async function () {
 // Test lseek edge cases operations.
 
 test("lseek invalid fd returns -1", async function () {
-    let ret = await tfs.lseek(-1, 0, tfs.SET);
+    let ret = await tfs.lseek(-1, 0, O.SET);
     return ok(ret, -1);
 });
 
 // Test link / unlink more operations.
 
 test("decrement nlink on unlink", async function () {
-    let fd = await tfs.open("/nl_a", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/nl_a", O.CREATE | O.READ_WRITE);
     tfs.close(fd);
 
     await tfs.link("/nl_a", "/nl_b");
@@ -608,10 +610,10 @@ test("link nonexistent source returns -1", async function () {
 });
 
 test("link target exists returns -1", async function () {
-    let fd_a = await tfs.open("/tex_a", tfs.CREATE | tfs.READ_WRITE);
+    let fd_a = await tfs.open("/tex_a", O.CREATE | O.READ_WRITE);
     tfs.close(fd_a);
 
-    let fd_b = await tfs.open("/tex_b", tfs.CREATE | tfs.READ_WRITE);
+    let fd_b = await tfs.open("/tex_b", O.CREATE | O.READ_WRITE);
     tfs.close(fd_b);
 
     let ret = await tfs.link("/tex_a", "/tex_b");
@@ -633,11 +635,11 @@ test("unlink root returns -1", async function () {
 // Test TRUNCATE edge cases operations.
 
 test("TRUNCATE no-op on empty file", async function () {
-    let fd1 = await tfs.open("/trunc0", tfs.CREATE | tfs.READ_WRITE);
+    let fd1 = await tfs.open("/trunc0", O.CREATE | O.READ_WRITE);
 
     tfs.close(fd1);
 
-    let fd2 = await tfs.open("/trunc0", tfs.TRUNCATE | tfs.READ_WRITE);
+    let fd2 = await tfs.open("/trunc0", O.TRUNCATE | O.READ_WRITE);
     let buf = { size: 0, mode: 0, nlink: 0 };
 
     await tfs.stat("/trunc0", buf);
@@ -650,7 +652,7 @@ test("TRUNCATE no-op on empty file", async function () {
 });
 
 test("TRUNCATE fails without CREATE on nonexistent file", async function () {
-    let fd = await tfs.open("/nonexistent_trunc", tfs.TRUNCATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/nonexistent_trunc", O.TRUNCATE | O.READ_WRITE);
     return ok(fd, -1);
 });
 
@@ -667,7 +669,7 @@ test("create and stat deeply nested dirs", async function () {
     if (ret !== 0)
         return "stat returned " + ret;
 
-    if ((buf.mode & tfs.TYPE_MASK) !== tfs.TYPE_DIR)
+    if ((buf.mode & O.TYPE_MASK) !== O.TYPE_DIR)
         return "not a directory";
 
     return null;
@@ -685,7 +687,7 @@ test("path normalization with ..", async function () {
     if (ret !== 0)
         return "stat returned " + ret;
 
-    if ((buf.mode & tfs.TYPE_MASK) !== tfs.TYPE_DIR)
+    if ((buf.mode & O.TYPE_MASK) !== O.TYPE_DIR)
         return "not a directory";
 
     return null;
@@ -694,8 +696,8 @@ test("path normalization with ..", async function () {
 // Test multi-fd operations.
 
 test("two fds to same file write via one read via the other", async function () {
-    let fd1  = await tfs.open("/shared", tfs.CREATE | tfs.READ_WRITE);
-    let fd2  = await tfs.open("/shared", tfs.READ_WRITE);
+    let fd1  = await tfs.open("/shared", O.CREATE | O.READ_WRITE);
+    let fd2  = await tfs.open("/shared", O.READ_WRITE);
     let data = new Uint8Array([10, 20, 30]);
     let nw   = await tfs.write(fd1, data, 3);
 
@@ -717,7 +719,7 @@ test("two fds to same file write via one read via the other", async function () 
 // Test interleaved operations.
 
 test("open unlink close close succeeds after unlink", async function () {
-    let fd = await tfs.open("/unlinkme", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/unlinkme", O.CREATE | O.READ_WRITE);
 
     await tfs.write(fd, new Uint8Array([1, 2, 3]), 3);
 
@@ -725,7 +727,7 @@ test("open unlink close close succeeds after unlink", async function () {
     if (ul_ret !== 0)
         return "unlink returned " + ul_ret;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(3);
 
@@ -749,14 +751,14 @@ test("open unlink close close succeeds after unlink", async function () {
 // Test block-boundary writes operations.
 
 test("write exactly BLOCK_SIZE bytes", async function () {
-    let fd   = await tfs.open("/exactb", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/exactb", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array(tfs.block_size).fill(0xAA);
 
     let nw = await tfs.write(fd, data, tfs.block_size);
     if (nw !== tfs.block_size)
         return "wrote " + nw;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(tfs.block_size);
     let nr  = await tfs.read(fd, buf, tfs.block_size);
@@ -770,14 +772,14 @@ test("write exactly BLOCK_SIZE bytes", async function () {
 });
 
 test("write BLOCK_SIZE + 1 bytes cross one boundary", async function () {
-    let fd   = await tfs.open("/crossb", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/crossb", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array(tfs.block_size + 1).fill(0xBB);
     let nw   = await tfs.write(fd, data, tfs.block_size + 1);
 
     if (nw !== tfs.block_size + 1)
         return "wrote " + nw;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(tfs.block_size + 1);
     let nr  = await tfs.read(fd, buf, tfs.block_size + 1);
@@ -791,7 +793,7 @@ test("write BLOCK_SIZE + 1 bytes cross one boundary", async function () {
 });
 
 test("write 2 times BLOCK_SIZE bytes", async function () {
-    let fd   = await tfs.open("/twofull", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/twofull", O.CREATE | O.READ_WRITE);
     let len  = tfs.block_size * 2;
     let data = new Uint8Array(len).fill(0xCC);
     let nw   = await tfs.write(fd, data, len);
@@ -799,7 +801,7 @@ test("write 2 times BLOCK_SIZE bytes", async function () {
     if (nw !== len)
         return "wrote " + nw;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(len);
     let nr  = await tfs.read(fd, buf, len);
@@ -815,7 +817,7 @@ test("write 2 times BLOCK_SIZE bytes", async function () {
 // Test hard-link nlink lifecycle operations.
 
 test("unlink one link preserves data via the other", async function () {
-    let fd   = await tfs.open("/orig", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/orig", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array([10, 20, 30]);
 
     await tfs.write(fd, data, 3);
@@ -829,7 +831,7 @@ test("unlink one link preserves data via the other", async function () {
     if (ret !== 0)
         return "unlink orig returned " + ret;
 
-    let fd2 = await tfs.open("/link", tfs.READ_WRITE);
+    let fd2 = await tfs.open("/link", O.READ_WRITE);
     let buf = new Uint8Array(3);
     let nr  = await tfs.read(fd2, buf, 3);
 
@@ -849,7 +851,7 @@ test("unlink one link preserves data via the other", async function () {
 });
 
 test("unlink all links deletes file", async function () {
-    let fd = await tfs.open("/hapath", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/hapath", O.CREATE | O.READ_WRITE);
     tfs.close(fd);
 
     await tfs.link("/hapath", "/hbpath");
@@ -873,21 +875,21 @@ test("unlink all links deletes file", async function () {
 // Test sparse file operations.
 
 test("sparse file seek past EOF write read back", async function () {
-    let fd       = await tfs.open("/sparse", tfs.CREATE | tfs.READ_WRITE);
+    let fd       = await tfs.open("/sparse", O.CREATE | O.READ_WRITE);
     let gap      = 1000;
     let data     = new Uint8Array([0xDE, 0xAD]);
     let expected = new Uint8Array(gap + data.length);
 
     expected.set(data, gap);
 
-    await tfs.lseek(fd, gap, tfs.SET);
+    await tfs.lseek(fd, gap, O.SET);
 
     let nw = await tfs.write(fd, data, data.length);
 
     if (nw !== data.length)
         return "wrote " + nw;
 
-    await tfs.lseek(fd, 0, tfs.SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     let buf = new Uint8Array(expected.length);
     let nr  = await tfs.read(fd, buf, expected.length);
@@ -903,8 +905,8 @@ test("sparse file seek past EOF write read back", async function () {
 // Test APPEND with two fds operations.
 
 test("APPEND with two fds both append to end", async function () {
-    let fd_a = await tfs.open("/dualapp", tfs.CREATE | tfs.READ_WRITE | tfs.APPEND);
-    let fd_b = await tfs.open("/dualapp", tfs.READ_WRITE | tfs.APPEND);
+    let fd_a = await tfs.open("/dualapp", O.CREATE | O.READ_WRITE | O.APPEND);
+    let fd_b = await tfs.open("/dualapp", O.READ_WRITE | O.APPEND);
 
     let nw_a = await tfs.write(fd_a, new Uint8Array([65]), 1);
     if (nw_a !== 1)
@@ -914,7 +916,7 @@ test("APPEND with two fds both append to end", async function () {
     if (nw_b !== 1)
         return "second write returned " + nw_b;
 
-    await tfs.lseek(fd_a, 0, tfs.SET);
+    await tfs.lseek(fd_a, 0, O.SET);
 
     let buf = new Uint8Array(2);
     let nr  = await tfs.read(fd_a, buf, 2);
@@ -935,7 +937,7 @@ test("fd slot reuse after close", async function () {
 
     for (let i = 0; i < tfs.max_fd; i++)
     {
-        let fd = await tfs.open("/reuse_" + i, tfs.CREATE | tfs.READ_WRITE);
+        let fd = await tfs.open("/reuse_" + i, O.CREATE | O.READ_WRITE);
 
         if (fd < 0)
             return "open failed at " + i;
@@ -945,7 +947,7 @@ test("fd slot reuse after close", async function () {
 
     tfs.close(fds[0]);
 
-    let new_fd = await tfs.open("/reuse_new", tfs.CREATE | tfs.READ_WRITE);
+    let new_fd = await tfs.open("/reuse_new", O.CREATE | O.READ_WRITE);
     if (new_fd !== fds[0])
         return "expected fd " + fds[0] + " got " + new_fd;
 
@@ -959,11 +961,11 @@ test("fd slot reuse after close", async function () {
 // Test read count clamping operations.
 
 test("read fewer bytes than requested near EOF", async function () {
-    let fd   = await tfs.open("/small", tfs.CREATE | tfs.READ_WRITE);
+    let fd   = await tfs.open("/small", O.CREATE | O.READ_WRITE);
     let data = new Uint8Array([1, 2, 3, 4, 5]);
 
     await tfs.write(fd, data, 5);
-    await tfs.lseek(fd, 3, tfs.SET);
+    await tfs.lseek(fd, 3, O.SET);
 
     let buf = new Uint8Array(10);
     let nr  = await tfs.read(fd, buf, 10);
@@ -1006,14 +1008,14 @@ test("readdir nonexistent path returns -1", async function () {
 // Test rename more operations.
 
 test("rename overwrite existing target", async function () {
-    let fd_a = await tfs.open("/ren_a", tfs.CREATE | tfs.READ_WRITE);
+    let fd_a = await tfs.open("/ren_a", O.CREATE | O.READ_WRITE);
     let d_a  = new Uint8Array([1, 2, 3]);
 
     await tfs.write(fd_a, d_a, 3);
 
     tfs.close(fd_a);
 
-    let fd_b = await tfs.open("/ren_b", tfs.CREATE | tfs.READ_WRITE);
+    let fd_b = await tfs.open("/ren_b", O.CREATE | O.READ_WRITE);
     let d_b  = new Uint8Array([4, 5, 6]);
 
     await tfs.write(fd_b, d_b, 3);
@@ -1023,7 +1025,7 @@ test("rename overwrite existing target", async function () {
     if (ret !== 0)
         return "rename returned " + ret;
 
-    let fd  = await tfs.open("/ren_b", tfs.READ_WRITE);
+    let fd  = await tfs.open("/ren_b", O.READ_WRITE);
     let buf = new Uint8Array(3);
 
     await tfs.read(fd, buf, 3);
@@ -1050,9 +1052,59 @@ test("rename directory source returns -1", async function () {
 });
 
 test("rename target parent missing returns -1", async function () {
-    let fd = await tfs.open("/rename_me", tfs.CREATE | tfs.READ_WRITE);
+    let fd = await tfs.open("/rename_me", O.CREATE | O.READ_WRITE);
     tfs.close(fd);
 
     let ret = await tfs.rename("/rename_me", "/nope/b");
     return ok(ret, -1);
+});
+
+test("export and import roundtrip", async function () {
+    await tfs.mkdir("/rt_dir");
+    await tfs.mkdir("/rt_dir/sub");
+
+    let fd   = await tfs.open("/rt_dir/f", O.CREATE | O.READ_WRITE);
+    let data = new Uint8Array([1, 2, 3, 4, 5]);
+    let nw   = await tfs.write(fd, data, data.length);
+
+    if (nw !== data.length)
+        return "write returned " + nw;
+
+    tfs.close(fd);
+
+    let blob = await tfs.export();
+    if (!blob || blob.byteLength === 0)
+        return "export returned empty blob";
+
+    let { TinyFS } = window.tinyfs;
+    let restored   = await TinyFS.import("browser_roundtrip", blob);
+
+    let sb = { size: 0, mode: 0, nlink: 0 };
+
+    let sret = await restored.stat("/rt_dir", sb);
+    if (sret !== 0)
+        return "stat dir returned " + sret;
+
+    if ((sb.mode & O.TYPE_MASK) !== O.TYPE_DIR)
+        return "dir not a directory";
+
+    sret = await restored.stat("/rt_dir/sub", sb);
+    if (sret !== 0)
+        return "stat subdir returned " + sret;
+
+    let fd2 = await restored.open("/rt_dir/f", O.READ);
+    let buf = new Uint8Array(5);
+    let nr  = await restored.read(fd2, buf, 5);
+
+    if (nr !== 5)
+        return "read returned " + nr;
+
+    let err = okBuf(buf, data, 5);
+    if (err)
+        return err;
+
+    restored.close(fd2);
+    restored.shutdown();
+
+    return null;
 });

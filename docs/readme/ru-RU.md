@@ -1,18 +1,17 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-![Build Status](https://github.com/bielok/tinyfs/actions/workflows/test.yml/badge.svg) ![Made in Buenos Aires](../../.github/madein.svg)
-
-*Браузерная файловая система на основе IndexedDB.*
-
-> [!NOTE]
-> Это экспериментальная идея — дайте знать, если она окажется полезной.
+*Файловая система в браузере на базе IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | **Русский**
+</div>
 
 **Кратко**
 
-Каждый системный вызов tinyfs, изменяющий состояние, выполняется в рамках одной транзакции IndexedDB. Если браузер упадёт, закончится квота или вкладка закроется посередине операции, транзакция атомарно откатится: либо все записи блоков и обновление метаданных фиксируются вместе, либо ни одна из них. Невозможны разорванная запись, потерянный inode или файл, размер которого не соответствует его блокам.
+Каждый системный вызов TinyFS, изменяющий состояние, выполняется в рамках одной транзакции IndexedDB. Если браузер упадёт, закончится квота или вкладка закроется посередине операции, транзакция атомарно откатится: либо все записи блоков и обновление метаданных фиксируются вместе, либо ни одна. Невозможны разорванная запись, потерянный inode или файл, размер которого не соответствует его блокам.
 
 **Примечательные возможности**
 
@@ -26,62 +25,18 @@
 - Доступен в форматах CommonJS, ESM и UMD.
 - Совместим с проектами на чистом JavaScript и TypeScript.
 
-## Установка
+## Начало работы
+
+### Установка
 
 ```bash
-> npm install tinyfs
+$ npm install @bielok/tinyfs
 ```
-
-<details>
-<summary>Установка с другими менеджерами пакетов и средами выполнения</summary>
-
-### Установка из GitHub
-
-```bash
-> npm install bielok/tinyfs
-```
-
-См. [документацию npm install](https://docs.npmjs.com/cli/v8/commands/npm-install).
-
-### Установка с pnpm
-
-```bash
-> pnpm install tinyfs
-```
-
-См. [документацию pnpm install](https://pnpm.io/cli/install).
-
-### Установка с yarn
-
-```bash
-> yarn add tinyfs
-```
-
-См. [документацию yarn add](https://classic.yarnpkg.com/lang/en/docs/cli/add/).
-
-### Установка с bun
-
-```bash
-> bun add tinyfs
-```
-
-См. [документацию bun add](https://bun.com/docs/pm/cli/add).
-
-### Установка с deno
-
-```bash
-> deno install tinyfs
-```
-
-См. [документацию deno install](https://docs.deno.com/runtime/reference/cli/install/).
-</details>
-
-## Использование
 
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -89,7 +44,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -99,7 +54,7 @@ async function main() {
 ### UMD (браузер)
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
     const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
@@ -113,13 +68,13 @@ async function main() {
 ### Пример
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -179,8 +134,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -204,13 +159,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // Атомарно перезаписать существующий файл (очищает старое содержимое).
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Открыть существующий файл для чтения (возвращает -1, если файл отсутствует).
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", READ);
 
 // Атомарное создание (завершается ошибкой, если уже существует).
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* другой экземпляр уже существует */ }
 ```
 
@@ -265,15 +220,15 @@ if (n !== data.length)
 
 ```ts
 // Перейти в начало.
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, SET);
 
 // Пропустить 100 байт вперёд (например, чтобы прочитать заголовок).
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, CURRENT);
 
 // Добавление: переместиться за конец файла к последнему байту. Следующая
 // запись расширит файл, создав разреженную область между старым
 // размером и новой позицией.
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, END);
 
 // Попытка переместиться до начала файла фиксируется на 0.
 ```
@@ -363,12 +318,31 @@ await tfs.rename("/tmp_download", "/final.txt");
 await tfs.rename("/new_config", "/config");
 ```
 
+`export()`
+
+Сериализует всю файловую систему в `ArrayBuffer` для резервного копирования или передачи. Вызов безопасен во время использования файловой системы — export открывает транзакцию IndexedDB только для чтения, которая не блокирует одновременные записи.
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+Создаёт файловую систему TinyFS из ранее экспортированного `ArrayBuffer`. Любые существующие данные в базе данных заменяются.
+
+```ts
+const blob = await tfs.export();
+
+// … позже или в другом приложении:
+const restored = await TinyFS.import("my-db", blob);
+```
+
 ## Сборка и запуск тестов
 
 ```bash
-bun run build     # Собрать все дистрибутивы.
-bun test          # Запустить модульные тесты и тесты конкурентности.
-bun run fuzz      # Запустить фаззер случайных операций.
+bun run build # Собрать все дистрибутивы.
+bun test      # Запустить модульные тесты и тесты конкурентности.
+bun run fuzz  # Запустить фаззер случайных операций.
 ```
 
 ## Бенчмарки

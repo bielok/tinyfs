@@ -1,13 +1,18 @@
+<div align="center">
+<br>
+
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*一個基於 IndexedDB 建構、經過實戰考驗的瀏覽器內檔案系統。*
+*一個基於 IndexedDB 建構的瀏覽器內檔案系統。*
 
-**繁體中文** | [English](../../README.md) | [简体中文](./zh-CN.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
+[English](../../README.md) | [简体中文](./zh-CN.md) | **繁體中文** | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
+
+</div>
 
 **摘要**
 
-tinyfs 的每個修改狀態的系統呼叫都在單一 IndexedDB 交易中執行。如果瀏覽器崩潰、超出配額限制或在操作中途關閉分頁，交易會原子性地回滾：要嘛所有區塊寫入和元資料更新一起提交，要嘛全部不提交。不會出現 torn write、懸空 inode 或檔案大小與區塊不匹配的情況。
+TinyFS 的每個修改狀態的系統呼叫都在單一 IndexedDB 交易中執行。如果瀏覽器崩潰、超出配額限制或在操作中途關閉分頁，交易會原子性地回滾：要麼所有區塊寫入和元資料更新一起提交，要麼全部不提交。不會出現 torn write、懸空 inode 或檔案大小與區塊不匹配的情況。
 
 **主要特性**
 
@@ -15,68 +20,24 @@ tinyfs 的每個修改狀態的系統呼叫都在單一 IndexedDB 交易中執�
 - 零執行時依賴。
 - 少量僅用於測試的開發依賴。
 - 90% 以上的測試覆蓋率。
-- 包含基礎模糊測試器。
+- 包含基礎模糊測試器（fuzzer）。
 - 包含瀏覽器內原子性和並發測試。
 - 使用 Puppeteer 在 Chrome 中進行基準測試。
 - 提供 CommonJS、ESM 和 UMD 格式的分發套件。
 - 相容於純 JavaScript 和 TypeScript 專案。
 
-## 安裝
+## 快速入門
+
+### 安裝
 
 ```bash
-> npm install tinyfs
+$ npm install @bielok/tinyfs
 ```
-
-<details>
-<summary>使用其他套件管理器和執行環境安裝</summary>
-
-### 從 GitHub 安裝
-
-```bash
-> npm install bielok/tinyfs
-```
-
-參見 [npm 安裝文件](https://docs.npmjs.com/cli/v8/commands/npm-install)。
-
-### 使用 pnpm 安裝
-
-```bash
-> pnpm install tinyfs
-```
-
-參見 [pnpm 安裝文件](https://pnpm.io/cli/install)。
-
-### 使用 yarn 安裝
-
-```bash
-> yarn add tinyfs
-```
-
-參見 [yarn 添加文件](https://classic.yarnpkg.com/lang/en/docs/cli/add/)。
-
-### 使用 bun 安裝
-
-```bash
-> bun add tinyfs
-```
-
-參見 [bun 添加文件](https://bun.com/docs/pm/cli/add)。
-
-### 使用 deno 安裝
-
-```bash
-> deno install tinyfs
-```
-
-參見 [deno 安裝文件](https://docs.deno.com/runtime/reference/cli/install/)。
-</details>
-
-## 使用方式
 
 ### ESM
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -84,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -94,7 +55,7 @@ async function main() {
 ### UMD（瀏覽器）
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
     const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
@@ -108,13 +69,13 @@ async function main() {
 ### 範例
 
 ```ts
-import { TinyFS } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", tfs.CREATE | tfs.READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -174,8 +135,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_DIR;
-    const is_file = (sb.mode & tfs.TYPE_MASK) === tfs.TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -199,13 +160,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 原子性地覆寫一個既有檔案（清除舊內容）。
-const fd = await tfs.open("/output.bin", tfs.TRUNCATE | tfs.WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 以唯讀方式開啟既有檔案（不存在時返回 -1）。
-const fd = await tfs.open("/config.json", tfs.READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // 原子性建立——如果已存在則失敗。
-const fd = await tfs.open("/lock", tfs.CREATE | tfs.EXCLUSIVE | tfs.READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* 另一個實例已存在 */ }
 ```
 
@@ -260,14 +221,14 @@ if (n !== data.length)
 
 ```ts
 // 回到開頭。
-await tfs.lseek(fd, 0, tfs.SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // 向前跳過 100 位元組（例如讀取標頭資訊）。
-await tfs.lseek(fd, 100, tfs.CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
-// 附加模式——跳過末尾到最後位元組。下一次寫入會延伸檔案，
+// 附加模式——將偏移量移到檔案末尾之後。下一次寫入會延伸檔案，
 // 在舊大小和新偏移量之間產生稀疏區域。
-const size = await tfs.lseek(fd, 10, tfs.END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // 嘗試定位到起始位置之前會限制為 0。
 ```
@@ -347,7 +308,7 @@ await tfs.unlink("/original");
 
 `rename(oldpath, newpath)`
 
-將檔案從 `oldpath` 移動到 `newpath`。如果 `newpath` 已存在，它會被原子性地替換。不能重新命名目錄。成功返回 0，出錯返回 -1。
+將檔案從 `oldpath` 移動到 `newpath`。如果 `newpath` 已存在，會被原子性地覆蓋。不能重新命名目錄。成功返回 0，出錯返回 -1。
 
 ```ts
 // 簡單重新命名。
@@ -357,12 +318,31 @@ await tfs.rename("/tmp_download", "/final.txt");
 await tfs.rename("/new_config", "/config");
 ```
 
+`export()`
+
+將整個檔案系統序列化為 `ArrayBuffer`，用於備份或傳輸。在檔案系統使用中呼叫是安全的——export 開啟唯讀的 IndexedDB 交易，不會阻塞並發寫入。
+
+```ts
+const blob : ArrayBuffer = await tfs.export();
+```
+
+`import(db_name, data, opts?)`
+
+從之前匯出的 `ArrayBuffer` 建立一個 TinyFS 檔案系統。資料庫中任何現有資料都會被取代。
+
+```ts
+const blob = await tfs.export();
+
+// … 之後或在另一個應用程式中：
+const restored = await TinyFS.import("my-db", blob);
+```
+
 ## 建置與執行測試
 
 ```bash
-bun run build     # 建置所有發行版本。
-bun test          # 執行單元測試和並發測試。
-bun run fuzz      # 執行隨機操作模糊測試。
+bun run build # 建置所有發行版本。
+bun test      # 執行單元測試和並發測試。
+bun run fuzz  # 執行隨機操作模糊測試。
 ```
 
 ## Benchmarks
