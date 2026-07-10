@@ -37,7 +37,7 @@ $ npm install @bielok/tinyfs
 ### ESM
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "@bielok/tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -45,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("@bielok/tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -55,9 +55,9 @@ async function main() {
 ### UMD（瀏覽器）
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
+    const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -69,13 +69,13 @@ async function main() {
 ### 範例
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "@bielok/tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", CREATE | READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -135,8 +135,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
-    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -160,13 +160,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 原子性地覆寫一個既有檔案（清除舊內容）。
-const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 以唯讀方式開啟既有檔案（不存在時返回 -1）。
-const fd = await tfs.open("/config.json", READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // 原子性建立——如果已存在則失敗。
-const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* 另一個實例已存在 */ }
 ```
 
@@ -221,14 +221,14 @@ if (n !== data.length)
 
 ```ts
 // 回到開頭。
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // 向前跳過 100 位元組（例如讀取標頭資訊）。
-await tfs.lseek(fd, 100, CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // 附加模式——將偏移量移到檔案末尾之後。下一次寫入會延伸檔案，
 // 在舊大小和新偏移量之間產生稀疏區域。
-const size = await tfs.lseek(fd, 10, END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // 嘗試定位到起始位置之前會限制為 0。
 ```
@@ -321,9 +321,9 @@ await tfs.rename("/new_config", "/config");
 ## 建置與執行測試
 
 ```bash
-bun run build     # 建置所有發行版本。
-bun test          # 執行單元測試和並發測試。
-bun run fuzz      # 執行隨機操作模糊測試。
+bun run build # 建置所有發行版本。
+bun test      # 執行單元測試和並發測試。
+bun run fuzz  # 執行隨機操作模糊測試。
 ```
 
 ## Benchmarks

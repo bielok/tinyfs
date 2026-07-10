@@ -37,7 +37,7 @@ $ npm install @bielok/tinyfs
 ### ESM
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -45,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -55,9 +55,9 @@ async function main() {
 ### UMD (브라우저)
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
+    const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -69,11 +69,11 @@ async function main() {
 ### 예제
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", CREATE | READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
 await tfs.lseek(fd, 0, SET);
 
@@ -160,13 +160,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 기존 파일을 원자적으로 덮어씁니다(이전 내용 삭제).
-const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 기존 파일을 읽기 전용으로 엽니다(없으면 -1 반환).
 const fd = await tfs.open("/config.json", READ);
 
 // 원자적으로 생성——이미 있으면 실패.
-const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* 다른 인스턴스가 이미 존재함 */ }
 ```
 
@@ -321,9 +321,9 @@ await tfs.rename("/new_config", "/config");
 ## 빌드 및 테스트 실행
 
 ```bash
-bun run build     # 모든 배포판을 빌드합니다.
-bun test          # 단위 테스트 및 동시성 테스트를 실행합니다.
-bun run fuzz      # 무작위 작업 퍼저를 실행합니다.
+bun run build # 모든 배포판을 빌드합니다.
+bun test      # 단위 테스트 및 동시성 테스트를 실행합니다.
+bun run fuzz  # 무작위 작업 퍼저를 실행합니다.
 ```
 
 ## Benchmarks

@@ -47,7 +47,7 @@ $ npm install @bielok/tinyfs
 ### ESM
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "@bielok/tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -55,7 +55,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("@bielok/tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -67,7 +67,7 @@ async function main() {
 ```html
 <script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
+    const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -79,13 +79,13 @@ All paths are absolute: they must start with `/`. The root directory is `/`.
 ### Example
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "@bielok/tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", CREATE | READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -150,8 +150,8 @@ directory.
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
-    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -180,13 +180,13 @@ argument is a bitmask; combine constants with `|`:
 
 ```ts
 // Overwrite an existing file atomically (clears old content).
-const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Open an existing file for reading (fails with -1 if missing).
-const fd = await tfs.open("/config.json", READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // Atomically create (fails if already exists).
-const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* another instance already exists */ }
 ```
 
@@ -250,14 +250,14 @@ to end of file). Returns the new offset, or -1 on error.
 
 ```ts
 // Rewind to the beginning.
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // Skip ahead 100 bytes (e.g., to read a header).
-await tfs.lseek(fd, 100, CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // Append: seek past the end to the last byte. The next write extends
 // the file, producing a sparse region between the old size and offset.
-const size = await tfs.lseek(fd, 10, END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // Attempting to seek before the start clamps to 0.
 ```

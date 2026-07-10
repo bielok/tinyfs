@@ -3,14 +3,7 @@
 // Pure TS, no DOM, no Node built-ins: runnable in the browser (via the
 // bench.umd.js bundle) or orchestrated headless from scripts/bench.ts.
 
-import {
-    CREATE,
-    READ,
-    READ_WRITE,
-    SET,
-    CURRENT,
-    END,
-} from "../src/tinyfs.ts";
+import { O } from "../src/tinyfs.ts";
 
 import type {
     BenchResult,
@@ -118,7 +111,7 @@ async function runLatencyBenchmarks (
 
     // Setup: create persistent file used by stat/read test files.
 
-    const fd_setup  : number     = await fs.open("/__bench_file", CREATE | READ_WRITE);
+    const fd_setup  : number     = await fs.open("/__bench_file", O.CREATE | O.READ_WRITE);
     const file_data : Uint8Array = new Uint8Array(1000).fill(0x41);
 
     await fs.write(fd_setup, file_data, 1000);
@@ -162,10 +155,10 @@ async function runLatencyBenchmarks (
         await fs.stat("/__bench_file", sb);
     });
 
-    // Benchmark open + close existing file (READ).
+    // Benchmark open + close existing file (O.READ).
 
     await run("open+close", async () => {
-        const f : number = await fs.open("/__bench_file", READ);
+        const f : number = await fs.open("/__bench_file", O.READ);
 
         fs.close(f);
     });
@@ -173,7 +166,7 @@ async function runLatencyBenchmarks (
     // Benchmark open + write 100 bytes + close.
 
     await run("write 100B", async () => {
-        const f   : number     = await fs.open("/__bench_file", READ_WRITE);
+        const f   : number     = await fs.open("/__bench_file", O.READ_WRITE);
         const buf : Uint8Array = new Uint8Array(100).fill(0x42);
 
         await fs.write(f, buf, 100);
@@ -184,10 +177,10 @@ async function runLatencyBenchmarks (
     // Benchmark open + read 100 bytes + close.
 
     await run("read 100B", async () => {
-        const f   : number     = await fs.open("/__bench_file", READ);
+        const f   : number     = await fs.open("/__bench_file", O.READ);
         const buf : Uint8Array = new Uint8Array(100);
 
-        await fs.lseek(f, 0, SET);
+        await fs.lseek(f, 0, O.SET);
         await fs.read(f, buf, 100);
 
         fs.close(f);
@@ -205,7 +198,7 @@ async function runLatencyBenchmarks (
 
     await run("create+unlink", async () =>
     {
-        const f : number = await fs.open("/__bench_create", CREATE | READ_WRITE);
+        const f : number = await fs.open("/__bench_create", O.CREATE | O.READ_WRITE);
 
         await fs.write(f, new Uint8Array(10).fill(0x43), 10);
 
@@ -235,18 +228,18 @@ async function runLatencyBenchmarks (
     // Benchmark seek: three lseek calls per iteration.
 
     await run("seek", async () => {
-        const f : number = await fs.open("/__bench_file", READ);
+        const f : number = await fs.open("/__bench_file", O.READ);
 
-        await fs.lseek(f, 0,  SET);
-        await fs.lseek(f, 10, CURRENT);
-        await fs.lseek(f, 0,  END);
+        await fs.lseek(f, 0,  O.SET);
+        await fs.lseek(f, 10, O.CURRENT);
+        await fs.lseek(f, 0,  O.END);
         fs.close(f);
     });
 
     // Benchmark rename.
 
     await run("rename", async () => {
-        const f : number = await fs.open("/__bench_rename_a", CREATE | READ_WRITE);
+        const f : number = await fs.open("/__bench_rename_a", O.CREATE | O.READ_WRITE);
 
         fs.close(f);
 
@@ -285,7 +278,7 @@ async function runThroughputBenchmarks (
 
         for (let i = 0; i < WARMUP; i++)
         {
-            const fd : number = await fs.open("/__bench_tp", CREATE | READ_WRITE);
+            const fd : number = await fs.open("/__bench_tp", O.CREATE | O.READ_WRITE);
 
             await fs.write(fd, new Uint8Array(size).fill(0x41), size);
 
@@ -298,7 +291,7 @@ async function runThroughputBenchmarks (
         for (let i = 0; i < ITER; i++)
         {
             const t0 : number = performance.now();
-            const fd : number = await fs.open("/__bench_tp", CREATE | READ_WRITE);
+            const fd : number = await fs.open("/__bench_tp", O.CREATE | O.READ_WRITE);
 
             await fs.write(fd, new Uint8Array(size).fill(0x41), size);
 
@@ -320,7 +313,7 @@ async function runThroughputBenchmarks (
         // Read throughput.
         // Create a persistent file of this size for reads.
 
-        const fd_create : number = await fs.open("/__bench_tp_read", CREATE | READ_WRITE);
+        const fd_create : number = await fs.open("/__bench_tp_read", O.CREATE | O.READ_WRITE);
 
         await fs.write(fd_create, new Uint8Array(size).fill(0x42), size);
 
@@ -328,7 +321,7 @@ async function runThroughputBenchmarks (
 
         for (let i = 0; i < WARMUP; i++)
         {
-            const fdr : number = await fs.open("/__bench_tp_read", READ);
+            const fdr : number = await fs.open("/__bench_tp_read", O.READ);
 
             await fs.read(fdr, new Uint8Array(size), size);
 
@@ -340,7 +333,7 @@ async function runThroughputBenchmarks (
         for (let i = 0; i < ITER; i++)
         {
             const t0  : number = performance.now();
-            const fdr : number = await fs.open("/__bench_tp_read", READ);
+            const fdr : number = await fs.open("/__bench_tp_read", O.READ);
 
             await fs.read(fdr, new Uint8Array(size), size);
 

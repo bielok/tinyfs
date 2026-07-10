@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import "fake-indexeddb/auto";
-import { TinyFS, CREATE, READ_WRITE, SET } from "../src/tinyfs.ts";
+import { O, TinyFS } from "../src/tinyfs.ts";
 import type { StatBuf } from "../src/tinyfs.ts";
 
 test("Bug 2: stale _dcache returns -1 for file recreated by another tab", async () => {
@@ -8,7 +8,7 @@ test("Bug 2: stale _dcache returns -1 for file recreated by another tab", async 
 
     const tfsA = await TinyFS.create(dbName);
     await tfsA.mkdir("/d");
-    const fdA = await tfsA.open("/d/f", CREATE | READ_WRITE);
+    const fdA = await tfsA.open("/d/f", O.CREATE | O.READ_WRITE);
     await tfsA.write(fdA, new Uint8Array([1, 2, 3]), 3);
     tfsA.close(fdA);
 
@@ -17,7 +17,7 @@ test("Bug 2: stale _dcache returns -1 for file recreated by another tab", async 
 
     const tfsB = await TinyFS.create(dbName);
     await tfsB.unlink("/d/f");
-    const fdB = await tfsB.open("/d/f", CREATE | READ_WRITE);
+    const fdB = await tfsB.open("/d/f", O.CREATE | O.READ_WRITE);
     await tfsB.write(fdB, new Uint8Array([4, 5, 6]), 3);
     tfsB.close(fdB);
 
@@ -34,9 +34,9 @@ test("Bug 3: concurrent read on same fd reads overlapping data", async () => {
     const data = new Uint8Array(10);
     for (let i = 0; i < data.length; i++) data[i] = i + 1;
 
-    const fd = await tfs.open("/f", CREATE | READ_WRITE);
+    const fd = await tfs.open("/f", O.CREATE | O.READ_WRITE);
     await tfs.write(fd, data, data.length);
-    await tfs.lseek(fd, 0, SET);
+    await tfs.lseek(fd, 0, O.SET);
 
     const buf1 = new Uint8Array(10);
     const buf2 = new Uint8Array(10);

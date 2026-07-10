@@ -36,7 +36,7 @@ $ npm install @bielok/tinyfs
 ### ESM
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -44,7 +44,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -54,9 +54,9 @@ async function main() {
 ### UMD (браузер)
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
+    const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -68,11 +68,11 @@ async function main() {
 ### Пример
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", CREATE | READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
 await tfs.lseek(fd, 0, SET);
 
@@ -134,8 +134,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
-    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -159,13 +159,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // Атомарно перезаписать существующий файл (очищает старое содержимое).
-const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Открыть существующий файл для чтения (возвращает -1, если файл отсутствует).
 const fd = await tfs.open("/config.json", READ);
 
 // Атомарное создание (завершается ошибкой, если уже существует).
-const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* другой экземпляр уже существует */ }
 ```
 
@@ -321,9 +321,9 @@ await tfs.rename("/new_config", "/config");
 ## Сборка и запуск тестов
 
 ```bash
-bun run build     # Собрать все дистрибутивы.
-bun test          # Запустить модульные тесты и тесты конкурентности.
-bun run fuzz      # Запустить фаззер случайных операций.
+bun run build # Собрать все дистрибутивы.
+bun test      # Запустить модульные тесты и тесты конкурентности.
+bun run fuzz  # Запустить фаззер случайных операций.
 ```
 
 ## Бенчмарки

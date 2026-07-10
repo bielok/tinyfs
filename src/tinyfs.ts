@@ -64,46 +64,23 @@ interface TinyFSOptions
 }
 
 export
-const READ : int = 0x00;
-
-export
-const WRITE : int = 0x01;
-
-export
-const READ_WRITE : int = 0x02;
-
-export
-const ACCESS_MODE : int = 0x03;
-
-export
-const CREATE : int = 0x40;
-
-export
-const EXCLUSIVE : int = 0x80;
-
-export
-const TRUNCATE : int = 0x200;
-
-export
-const APPEND : int = 0x400;
-
-export
-const SET : int = 0;
-
-export
-const CURRENT : int = 1;
-
-export
-const END : int = 2;
-
-export
-const TYPE_MASK : int = 0o170000;
-
-export
-const TYPE_DIR : int = 0o040000;
-
-export
-const TYPE_FILE : int = 0o100000;
+enum O
+{
+    READ        = 0x00,
+    WRITE       = 0x01,
+    READ_WRITE  = 0x02,
+    ACCESS_MODE = 0x03,
+    CREATE      = 0x40,
+    EXCLUSIVE   = 0x80,
+    TRUNCATE    = 0x200,
+    APPEND      = 0x400,
+    SET         = 0,
+    CURRENT     = 1,
+    END         = 2,
+    TYPE_MASK   = 0o170000,
+    TYPE_DIR    = 0o040000,
+    TYPE_FILE   = 0o100000,
+}
 
 export
 const BLOCK_SIZE : uint = 4096;
@@ -117,8 +94,7 @@ const ROOT_INODE : IDBValidKey = 1;
 export
 const DB_VERSION : uint = 1;
 
-export
-const FORMAT_VERSION : uint = 1;
+export const FORMAT_VERSION : uint = 1;
 
 export
 const STORE_INODES : string = "inodes";
@@ -282,7 +258,7 @@ class TinyFS
                     if (root_req.result === undefined)
                     {
                         const root_inode =  {
-                              mode:    TYPE_DIR | 0o755,
+                              mode:    O.TYPE_DIR | 0o755,
                               nlink:   1,
                               size:    0,
                               entries: {}
@@ -380,7 +356,7 @@ class TinyFS
             size:  0,
         };
 
-        if ((mode & TYPE_MASK) === TYPE_DIR)
+        if ((mode & O.TYPE_MASK) === O.TYPE_DIR)
             inode.entries = {};
 
         const store : IDBObjectStore = tx.objectStore(STORE_INODES);
@@ -523,7 +499,7 @@ class TinyFS
                 const comp  : string       = target_parts[i]!;
                 const inode : INode | null = await this._getInode(tx, current_id);
 
-                if (inode === null || (inode.mode & TYPE_MASK) !== TYPE_DIR || !inode.entries)
+                if (inode === null || (inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || !inode.entries)
                 {
                     result.id = -1;
                     return result;
@@ -631,7 +607,7 @@ class TinyFS
 
             const parent_inode : INode | null = await this._getInode(tx, new_res.id);
 
-            if (parent_inode === null || (parent_inode.mode & TYPE_MASK) !== TYPE_DIR || parent_inode.entries === undefined)
+            if (parent_inode === null || (parent_inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || parent_inode.entries === undefined)
                 return -1;
 
             if (parent_inode.entries[new_res.name] !== undefined)
@@ -639,7 +615,7 @@ class TinyFS
 
             const old_inode : INode | null = await this._getInode(tx, old_res.id);
 
-            if (old_inode === null || (old_inode.mode & TYPE_MASK) === TYPE_DIR)
+            if (old_inode === null || (old_inode.mode & O.TYPE_MASK) === O.TYPE_DIR)
                 return -1;
 
             old_inode.nlink++;
@@ -682,7 +658,7 @@ class TinyFS
 
             const parent_inode : INode | null = await this._getInode(tx, res.id);
 
-            if (parent_inode === null || (parent_inode.mode & TYPE_MASK) !== TYPE_DIR || parent_inode.entries === undefined)
+            if (parent_inode === null || (parent_inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || parent_inode.entries === undefined)
                 return -1;
 
             const child_id : int | undefined = parent_inode.entries[res.name];
@@ -692,7 +668,7 @@ class TinyFS
 
             const child_inode : INode | null = await this._getInode(tx, child_id);
 
-            if (child_inode === null || (child_inode.mode & TYPE_MASK) === TYPE_DIR)
+            if (child_inode === null || (child_inode.mode & O.TYPE_MASK) === O.TYPE_DIR)
                 return -1;
 
             delete parent_inode.entries[res.name];
@@ -740,7 +716,7 @@ class TinyFS
 
             const parent_inode : INode | null = await this._getInode(tx, res.id);
 
-            if (parent_inode === null || (parent_inode.mode & TYPE_MASK) !== TYPE_DIR || parent_inode.entries === undefined)
+            if (parent_inode === null || (parent_inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || parent_inode.entries === undefined)
                 return -1;
 
             const child_id : int | undefined = parent_inode.entries[res.name];
@@ -750,7 +726,7 @@ class TinyFS
 
             const child_inode : INode | null = await this._getInode(tx, child_id);
 
-            if (child_inode === null || (child_inode.mode & TYPE_MASK) !== TYPE_DIR || child_inode.entries === undefined)
+            if (child_inode === null || (child_inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || child_inode.entries === undefined)
                 return -1;
 
             if (Object.keys(child_inode.entries).length > 0)
@@ -793,13 +769,13 @@ class TinyFS
 
             const parent_inode : INode | null = await this._getInode(tx, res.id);
 
-            if (parent_inode === null || (parent_inode.mode & TYPE_MASK) !== TYPE_DIR || parent_inode.entries === undefined)
+            if (parent_inode === null || (parent_inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || parent_inode.entries === undefined)
                 return -1;
 
             if (parent_inode.entries[res.name] !== undefined)
                 return -1;
 
-            const child_inode : INode = await this._createInode(tx, TYPE_DIR | 0o755);
+            const child_inode : INode = await this._createInode(tx, O.TYPE_DIR | 0o755);
 
             parent_inode.entries[res.name] = child_inode.id!;
 
@@ -818,12 +794,12 @@ class TinyFS
      * Opens or creates a file and returns a file descriptor.
      *
      * The behaviour depends on `flags`:
-     * - CREATE: create the file if it does not exist.
-     * - EXCLUSIVE:  fail if CREATE is set and the file exists.
-     * - TRUNCATE: truncate the file to length 0 on open.
-     * - APPEND: all writes are appended to the end.
+     * - O.CREATE: create the file if it does not exist.
+     * - O.EXCLUSIVE:  fail if O.CREATE is set and the file exists.
+     * - O.TRUNCATE: truncate the file to length 0 on open.
+     * - O.APPEND: all writes are appended to the end.
      *
-     * The access mode (READ, WRITE, READ_WRITE) selects read, write, or both.
+     * The access mode (READ, WRITE, O.READ_WRITE) selects read, write, or both.
      * Directories can only be opened for reading.
      *
      * @returns A non-negative fd on success, or -1 on failure.
@@ -836,9 +812,9 @@ class TinyFS
     {
         try
         {
-            const acc       : int            = flags & ACCESS_MODE;
-            const read_only : boolean        = acc === READ && !(flags & CREATE) && !(flags & TRUNCATE);
-            const stores    : string[]       = (flags & TRUNCATE) ? [STORE_INODES, STORE_BLOCKS] : [STORE_INODES];
+            const acc       : int            = flags & O.ACCESS_MODE;
+            const read_only : boolean        = acc === O.READ && !(flags & O.CREATE) && !(flags & O.TRUNCATE);
+            const stores    : string[]       = (flags & O.TRUNCATE) ? [STORE_INODES, STORE_BLOCKS] : [STORE_INODES];
             const tx        : IDBTransaction = this.fs_db!.transaction(stores, read_only ? TX_READ_ONLY : TX_READ_WRITE);
             const res       : PathResolution = await this._resolvePath(tx, path, false);
 
@@ -846,7 +822,7 @@ class TinyFS
 
             if (target_id < 0)
             {
-                if (flags & CREATE)
+                if (flags & O.CREATE)
                 {
                     const parent_res : PathResolution = await this._resolvePath(tx, path, true);
 
@@ -855,10 +831,10 @@ class TinyFS
 
                     const parent_inode : INode | null = await this._getInode(tx, parent_res.id);
 
-                    if (parent_inode === null || (parent_inode.mode & TYPE_MASK) !== TYPE_DIR || parent_inode.entries === undefined)
+                    if (parent_inode === null || (parent_inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || parent_inode.entries === undefined)
                         return -1;
 
-                    const new_inode : INode = await this._createInode(tx, TYPE_FILE | 0o644);
+                    const new_inode : INode = await this._createInode(tx, O.TYPE_FILE | 0o644);
 
                     parent_inode.entries[parent_res.name] = new_inode.id!;
 
@@ -873,7 +849,7 @@ class TinyFS
                     return -1;
                 }
             }
-            else if ((flags & CREATE) && (flags & EXCLUSIVE))
+            else if ((flags & O.CREATE) && (flags & O.EXCLUSIVE))
             {
                 return -1;
             }
@@ -883,10 +859,10 @@ class TinyFS
             if (inode === null)
                 return -1;
 
-            if ((inode.mode & TYPE_MASK) === TYPE_DIR && ((flags & ACCESS_MODE) === WRITE || (flags & ACCESS_MODE) === READ_WRITE))
+            if ((inode.mode & O.TYPE_MASK) === O.TYPE_DIR && ((flags & O.ACCESS_MODE) === O.WRITE || (flags & O.ACCESS_MODE) === O.READ_WRITE))
                 return -1;
 
-            if ((flags & TRUNCATE) && ((flags & ACCESS_MODE) === WRITE || (flags & ACCESS_MODE) === READ_WRITE))
+            if ((flags & O.TRUNCATE) && ((flags & O.ACCESS_MODE) === O.WRITE || (flags & O.ACCESS_MODE) === O.READ_WRITE))
             {
                 inode.size = 0;
 
@@ -900,7 +876,7 @@ class TinyFS
                 {
                     this.fd_table[i]!.used     = true;
                     this.fd_table[i]!.inode_id = target_id;
-                    this.fd_table[i]!.offset   = (flags & APPEND) ? inode.size : 0;
+                    this.fd_table[i]!.offset   = (flags & O.APPEND) ? inode.size : 0;
                     this.fd_table[i]!.flags    = flags;
 
                     return i;
@@ -956,7 +932,7 @@ class TinyFS
         const flags    : int            = f_obj.flags;
         const inode_id : int            = f_obj.inode_id;
 
-        if ((flags & ACCESS_MODE) === WRITE)
+        if ((flags & O.ACCESS_MODE) === O.WRITE)
             return -1;
 
         const release : () => void = await this.lockFd(fd);
@@ -969,7 +945,7 @@ class TinyFS
             if (inode === null)
                 return -1;
 
-            if ((inode.mode & TYPE_MASK) === TYPE_DIR)
+            if ((inode.mode & O.TYPE_MASK) === O.TYPE_DIR)
                 return -1;
 
             let file_offset : int = f_obj.offset;
@@ -1018,7 +994,7 @@ class TinyFS
      * The file descriptor must be open.
      *
      * The write starts at the current file offset, which is advanced by the
-     * number of bytes written. If APPEND is set on the fd, the offset is first
+     * number of bytes written. If O.APPEND is set on the fd, the offset is first
      * moved to the end of the file.
      *
      * If the write extends past the end of the file, the file size is updated.
@@ -1039,7 +1015,7 @@ class TinyFS
         const flags    : int            = f_obj.flags;
         const inode_id : int            = f_obj.inode_id;
 
-        if ((flags & ACCESS_MODE) === READ)
+        if ((flags & O.ACCESS_MODE) === O.READ)
             return -1;
 
         const release : () => void = await this.lockFd(fd);
@@ -1054,7 +1030,7 @@ class TinyFS
 
             let file_offset : int = f_obj.offset;
 
-            if (flags & APPEND)
+            if (flags & O.APPEND)
                 file_offset = inode.size;
 
             let bytes_written : uint = 0;
@@ -1140,15 +1116,15 @@ class TinyFS
 
             let new_offset : int = 0;
 
-            if (whence === SET)
+            if (whence === O.SET)
             {
                 new_offset = offset;
             }
-            else if (whence === CURRENT)
+            else if (whence === O.CURRENT)
             {
                 new_offset = f_obj.offset + offset;
             }
-            else if (whence === END)
+            else if (whence === O.END)
             {
                 const tx    : IDBTransaction = this.fs_db!.transaction([STORE_INODES], TX_READ_ONLY);
                 const inode : INode | null   = await this._getInode(tx, inode_id);
@@ -1193,7 +1169,7 @@ class TinyFS
 
             const inode : INode | null = await this._getInode(tx, res.id);
 
-            if (inode === null || (inode.mode & TYPE_MASK) !== TYPE_DIR || inode.entries === undefined)
+            if (inode === null || (inode.mode & O.TYPE_MASK) !== O.TYPE_DIR || inode.entries === undefined)
                 return -1;
 
             const names : string[] = Object.keys(inode.entries);
@@ -1238,7 +1214,7 @@ class TinyFS
 
             const old_inode : INode | null = await this._getInode(tx, old_res.id);
 
-            if (old_inode === null || (old_inode.mode & TYPE_MASK) === TYPE_DIR)
+            if (old_inode === null || (old_inode.mode & O.TYPE_MASK) === O.TYPE_DIR)
                 return -1;
 
             const new_res : PathResolution = await this._resolvePath(tx, newpath, true);
@@ -1248,7 +1224,7 @@ class TinyFS
 
             const new_parent : INode | null = await this._getInode(tx, new_res.id);
 
-            if (new_parent === null || (new_parent.mode & TYPE_MASK) !== TYPE_DIR || new_parent.entries === undefined)
+            if (new_parent === null || (new_parent.mode & O.TYPE_MASK) !== O.TYPE_DIR || new_parent.entries === undefined)
                 return -1;
 
             const existing_id : int | undefined = new_parent.entries[new_res.name];
@@ -1257,7 +1233,7 @@ class TinyFS
             {
                 const existing_inode : INode | null = await this._getInode(tx, existing_id);
 
-                if (existing_inode === null || (existing_inode.mode & TYPE_MASK) === TYPE_DIR)
+                if (existing_inode === null || (existing_inode.mode & O.TYPE_MASK) === O.TYPE_DIR)
                     return -1;
 
                 delete new_parent.entries[new_res.name];
@@ -1284,7 +1260,7 @@ class TinyFS
             if (old_parent_res.id === new_res.id)
                 old_parent = new_parent;
 
-            if ((old_parent.mode & TYPE_MASK) !== TYPE_DIR || old_parent.entries === undefined)
+            if ((old_parent.mode & O.TYPE_MASK) !== O.TYPE_DIR || old_parent.entries === undefined)
                 return -1;
 
             old_inode.nlink++;
@@ -1574,3 +1550,5 @@ class TinyFS
         return fs;
     }
 }
+
+export default TinyFS;

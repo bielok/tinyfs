@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeAll, beforeEach } from "bun:test";
 import "fake-indexeddb/auto";
-import { APPEND, CREATE, CURRENT, END, EXCLUSIVE, FORMAT_VERSION, READ, READ_WRITE, SET, TinyFS, TRUNCATE, TYPE_DIR, TYPE_FILE, TYPE_MASK, WRITE } from "../src/tinyfs.ts";
+import { O, FORMAT_VERSION, TinyFS } from "../src/tinyfs.ts";
 import type { StatBuf, DirEnt } from "../src/tinyfs.ts";
 
 let tfs : TinyFS;
@@ -25,7 +25,7 @@ describe("stat", () => {
         const ret : number  = await tfs.stat("/", buf);
 
         expect(ret).toBe(0);
-        expect(buf.mode & TYPE_MASK).toBe(TYPE_DIR);
+        expect(buf.mode & O.TYPE_MASK).toBe(O.TYPE_DIR);
         expect(buf.nlink).toBe(1);
     });
 
@@ -43,7 +43,7 @@ describe("stat", () => {
         const ret               = await tfs.stat("/mydir", buf);
 
         expect(ret).toBe(0);
-        expect(buf.mode & TYPE_MASK).toBe(TYPE_DIR);
+        expect(buf.mode & O.TYPE_MASK).toBe(O.TYPE_DIR);
     });
 });
 
@@ -71,8 +71,8 @@ describe("mkdir / rmdir", () => {
 });
 
 describe("open / close", () => {
-    test("should open a file with CREATE", async () => {
-        const fd : number = await tfs.open("/f", CREATE | READ_WRITE);
+    test("should open a file with O.CREATE", async () => {
+        const fd : number = await tfs.open("/f", O.CREATE | O.READ_WRITE);
         expect(fd).not.toBe(-1);
         expect(fd).toBeGreaterThanOrEqual(0);
         expect(tfs.fd_table[fd]!.used).toBe(true);
@@ -87,18 +87,18 @@ describe("open / close", () => {
         expect(tfs.close(tfs.max_fd)).toBe(-1);
     });
 
-    test("CREATE | EXCLUSIVE should fail on existing file", async () => {
-        const fd_1 : number = await tfs.open("/f", CREATE | READ_WRITE);
+    test("O.CREATE | O.EXCLUSIVE should fail on existing file", async () => {
+        const fd_1 : number = await tfs.open("/f", O.CREATE | O.READ_WRITE);
         tfs.close(fd_1);
 
-        const fd_2 : number = await tfs.open("/f", CREATE | EXCLUSIVE | READ_WRITE);
+        const fd_2 : number = await tfs.open("/f", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
         expect(fd_2).toBe(-1);
     });
 
     test("should fail to open a directory with WRONLY", async () => {
         await tfs.mkdir("/d");
 
-        const fd : number = await tfs.open("/d", WRITE);
+        const fd : number = await tfs.open("/d", O.WRITE);
         expect(fd).toBe(-1);
     });
 
@@ -107,7 +107,7 @@ describe("open / close", () => {
 
         for (let i = 0; i < tfs.max_fd; i++)
         {
-            const fd : number = await tfs.open(`/f${i}`, CREATE | READ_WRITE);
+            const fd : number = await tfs.open(`/f${i}`, O.CREATE | O.READ_WRITE);
 
             if (fd < 0)
                 break;
@@ -117,7 +117,7 @@ describe("open / close", () => {
 
         expect(fds.length).toBe(tfs.max_fd);
 
-        const fd : number = await tfs.open("/extra", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/extra", O.CREATE | O.READ_WRITE);
         expect(fd).toBe(-1);
 
         for (const f of fds)
@@ -127,13 +127,13 @@ describe("open / close", () => {
 
 describe("write / read", () => {
     test("should write and read back", async () => {
-        const fd   : number     = await tfs.open("/hellofile", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/hellofile", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
         const nw   : number     = await tfs.write(fd, data, data.length);
 
         expect(nw).toBe(data.length);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(64);
         const nr  : number     = await tfs.read(fd, buf, 64);
@@ -145,12 +145,12 @@ describe("write / read", () => {
     });
 
     test("should handle partial read", async () => {
-        const fd   : number     = await tfs.open("/partial", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/partial", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(100).fill(0xAB);
 
         await tfs.write(fd, data, 100);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(30);
         const nr  : number     = await tfs.read(fd, buf, 30);
@@ -169,7 +169,7 @@ describe("write / read", () => {
     });
 
     test("should read 0 bytes at EOF on fresh file", async () => {
-        const fd  : number     = await tfs.open("/empty", CREATE | READ_WRITE);
+        const fd  : number     = await tfs.open("/empty", O.CREATE | O.READ_WRITE);
         const buf : Uint8Array = new Uint8Array(10);
         const nr  : number     = await tfs.read(fd, buf, 10);
 
@@ -179,13 +179,13 @@ describe("write / read", () => {
     });
 
     test("should write across block boundaries", async () => {
-        const fd   : number     = await tfs.open("/big", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/big", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(tfs.block_size + 100).fill(0x42);
         const nw   : number     = await tfs.write(fd, data, data.length);
 
         expect(nw).toBe(data.length);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(data.length);
         const nr  : number     = await tfs.read(fd, buf, data.length);
@@ -197,17 +197,17 @@ describe("write / read", () => {
     });
 
     test("should overwrite at offset after seek", async () => {
-        const fd : number     = await tfs.open("/rw", CREATE | READ_WRITE);
+        const fd : number     = await tfs.open("/rw", O.CREATE | O.READ_WRITE);
         const a  : Uint8Array = new Uint8Array([1, 2, 3]);
         const b  : Uint8Array = new Uint8Array([4, 5, 6]);
 
         await tfs.write(fd, a, 3);
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
         await tfs.write(fd, b, 3);
 
         // File size is 3 (overwrite, no extension)
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(6);
         const nr  : number     = await tfs.read(fd, buf, 6);
@@ -220,26 +220,26 @@ describe("write / read", () => {
 });
 
 describe("lseek", () => {
-    test("should seek with SET, CURRENT, END", async () => {
-        const fd   : number     = await tfs.open("/seekfile", CREATE | READ_WRITE);
+    test("should seek with O.SET, O.CURRENT, O.END", async () => {
+        const fd   : number     = await tfs.open("/seekfile", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(100).fill(0xFF);
 
         await tfs.write(fd, data, 100);
 
-        const off_1 : number = await tfs.lseek(fd, 10, SET);
+        const off_1 : number = await tfs.lseek(fd, 10, O.SET);
         expect(off_1).toBe(10);
 
-        const off_2 : number = await tfs.lseek(fd, 5, CURRENT);
+        const off_2 : number = await tfs.lseek(fd, 5, O.CURRENT);
         expect(off_2).toBe(15);
 
-        const off_3 : number = await tfs.lseek(fd, 0, END);
+        const off_3 : number = await tfs.lseek(fd, 0, O.END);
         expect(off_3).toBe(100);
 
         tfs.close(fd);
     });
 
     test("should return -1 for invalid whence", async () => {
-        const fd  : number = await tfs.open("/seekfile", CREATE | READ_WRITE);
+        const fd  : number = await tfs.open("/seekfile", O.CREATE | O.READ_WRITE);
         const ret : number = await tfs.lseek(fd, 0, 99);
 
         expect(ret).toBe(-1);
@@ -250,7 +250,7 @@ describe("lseek", () => {
 
 describe("link / unlink", () => {
     test("should hard link and preserve data", async () => {
-        const fd   : number     = await tfs.open("/a", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/a", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([1, 2, 3]);
 
         await tfs.write(fd, data, 3);
@@ -260,7 +260,7 @@ describe("link / unlink", () => {
 
         expect(ret).toBe(0);
 
-        const fd2 : number     = await tfs.open("/b", READ_WRITE);
+        const fd2 : number     = await tfs.open("/b", O.READ_WRITE);
         const buf : Uint8Array = new Uint8Array(3);
 
         await tfs.read(fd2, buf, 3);
@@ -270,7 +270,7 @@ describe("link / unlink", () => {
     });
 
     test("should decrement nlink on unlink", async () => {
-        const fd : number = await tfs.open("/a", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/a", O.CREATE | O.READ_WRITE);
 
         tfs.close(fd);
         await tfs.link("/a", "/b");
@@ -302,14 +302,14 @@ describe("link / unlink", () => {
     });
 });
 
-describe("TRUNCATE", () => {
-    test("should clear file on open with TRUNCATE", async () => {
-        const fd : number = await tfs.open("/f", CREATE | READ_WRITE);
+describe("O.TRUNCATE", () => {
+    test("should clear file on open with O.TRUNCATE", async () => {
+        const fd : number = await tfs.open("/f", O.CREATE | O.READ_WRITE);
 
         await tfs.write(fd, new Uint8Array(100).fill(0xAA), 100);
         tfs.close(fd);
 
-        const fd2 : number  = await tfs.open("/f", TRUNCATE | READ_WRITE);
+        const fd2 : number  = await tfs.open("/f", O.TRUNCATE | O.READ_WRITE);
         const buf : StatBuf = { size: 0, mode: 0, nlink: 0 };
 
         await tfs.stat("/f", buf);
@@ -329,7 +329,7 @@ describe("nested directories", () => {
         let   ret : number  = await tfs.stat("/a/b/c", buf);
 
         expect(ret).toBe(0);
-        expect(buf.mode & TYPE_MASK).toBe(TYPE_DIR);
+        expect(buf.mode & O.TYPE_MASK).toBe(O.TYPE_DIR);
     });
 });
 
@@ -342,13 +342,13 @@ describe("path resolution with .. and .", () => {
         let ret   : number  = await tfs.stat("/a/b/../b", buf);
 
         expect(ret).toBe(0);
-        expect(buf.mode & TYPE_MASK).toBe(TYPE_DIR);
+        expect(buf.mode & O.TYPE_MASK).toBe(O.TYPE_DIR);
     });
 });
 
 describe("stat a regular file", () => {
     test("should stat a file after write", async () => {
-        const fd   : number     = await tfs.open("/statfile", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/statfile", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([1, 2, 3, 4, 5]);
 
         await tfs.write(fd, data, 5);
@@ -359,7 +359,7 @@ describe("stat a regular file", () => {
         const ret : number  = await tfs.stat("/statfile", buf);
 
         expect(ret).toBe(0);
-        expect(buf.mode & TYPE_MASK).toBe(TYPE_FILE);
+        expect(buf.mode & O.TYPE_MASK).toBe(O.TYPE_FILE);
         expect(buf.size).toBe(5);
         expect(buf.nlink).toBe(1);
     });
@@ -385,7 +385,7 @@ describe("rmdir error cases", () => {
     });
 
     test("should fail on a regular file", async () => {
-        const fd : number = await tfs.open("/file", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/file", O.CREATE | O.READ_WRITE);
         tfs.close(fd);
 
         const ret : number = await tfs.rmdir("/file");
@@ -394,13 +394,13 @@ describe("rmdir error cases", () => {
 });
 
 describe("open error cases", () => {
-    test("should fail without CREATE on nonexistent file", async () => {
-        const fd : number = await tfs.open("/nope", READ_WRITE);
+    test("should fail without O.CREATE on nonexistent file", async () => {
+        const fd : number = await tfs.open("/nope", O.READ_WRITE);
         expect(fd).toBe(-1);
     });
 
-    test("READ should reject writes", async () => {
-        const fd   : number     = await tfs.open("/roadonly", CREATE | READ);
+    test("O.READ should reject writes", async () => {
+        const fd   : number     = await tfs.open("/roadonly", O.CREATE | O.READ);
         const data : Uint8Array = new Uint8Array([1]);
         const nw   : number     = await tfs.write(fd, data, 1);
 
@@ -408,8 +408,8 @@ describe("open error cases", () => {
         tfs.close(fd);
     });
 
-    test("WRITE should reject reads", async () => {
-        const fd  : number     = await tfs.open("/writeonly", CREATE | WRITE);
+    test("O.WRITE should reject reads", async () => {
+        const fd  : number     = await tfs.open("/writeonly", O.CREATE | O.WRITE);
         const buf : Uint8Array = new Uint8Array(1);
         const nr  : number     = await tfs.read(fd, buf, 1);
 
@@ -420,7 +420,7 @@ describe("open error cases", () => {
 
 describe("write edge cases", () => {
     test("should write 0 bytes and return 0", async () => {
-        const fd   : number     = await tfs.open("/zero", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/zero", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(0);
         const nw   : number     = await tfs.write(fd, data, 0);
 
@@ -431,7 +431,7 @@ describe("write edge cases", () => {
     test("should fail on a directory fd", async () => {
         await tfs.mkdir("/writedir");
 
-        const fd   : number     = await tfs.open("/writedir", READ);
+        const fd   : number     = await tfs.open("/writedir", O.READ);
         const data : Uint8Array = new Uint8Array([1]);
         const nw   : number     = await tfs.write(fd, data, 1);
 
@@ -442,7 +442,7 @@ describe("write edge cases", () => {
 
 describe("read edge cases", () => {
     test("should read 0 bytes and return 0", async () => {
-        const fd  : number     = await tfs.open("/r0", CREATE | READ_WRITE);
+        const fd  : number     = await tfs.open("/r0", O.CREATE | O.READ_WRITE);
         const buf : Uint8Array = new Uint8Array(0);
         const nr  : number     = await tfs.read(fd, buf, 0);
 
@@ -453,7 +453,7 @@ describe("read edge cases", () => {
     test("should fail on a directory fd", async () => {
         await tfs.mkdir("/readdir");
 
-        const fd  : number     = await tfs.open("/readdir", READ);
+        const fd  : number     = await tfs.open("/readdir", O.READ);
         const buf : Uint8Array = new Uint8Array(1);
         const nr  : number     = await tfs.read(fd, buf, 1);
 
@@ -464,7 +464,7 @@ describe("read edge cases", () => {
 
 describe("lseek edge cases", () => {
     test("should fail on invalid fd", async () => {
-        const ret : number = await tfs.lseek(-1, 0, SET);
+        const ret : number = await tfs.lseek(-1, 0, O.SET);
         expect(ret).toBe(-1);
     });
 });
@@ -478,10 +478,10 @@ describe("link error cases", () => {
     });
 
     test("should fail when target already exists", async () => {
-        const fd_a : number = await tfs.open("/a", CREATE | READ_WRITE);
+        const fd_a : number = await tfs.open("/a", O.CREATE | O.READ_WRITE);
         tfs.close(fd_a);
 
-        const fd_b : number = await tfs.open("/b", CREATE | READ_WRITE);
+        const fd_b : number = await tfs.open("/b", O.CREATE | O.READ_WRITE);
         tfs.close(fd_b);
 
         const ret : number = await tfs.link("/a", "/b");
@@ -501,12 +501,12 @@ describe("unlink error cases", () => {
     });
 });
 
-describe("TRUNCATE edge cases", () => {
+describe("O.TRUNCATE edge cases", () => {
     test("should no-op on empty file", async () => {
-        const fd_1 : number = await tfs.open("/trunc0", CREATE | READ_WRITE);
+        const fd_1 : number = await tfs.open("/trunc0", O.CREATE | O.READ_WRITE);
         tfs.close(fd_1);
 
-        const fd_2 : number = await tfs.open("/trunc0", TRUNCATE | READ_WRITE);
+        const fd_2 : number = await tfs.open("/trunc0", O.TRUNCATE | O.READ_WRITE);
 
         const buf : StatBuf = { size: 0, mode: 0, nlink: 0 };
         await tfs.stat("/trunc0", buf);
@@ -515,15 +515,15 @@ describe("TRUNCATE edge cases", () => {
         tfs.close(fd_2);
     });
 
-    test("should fail without CREATE on nonexistent file", async () => {
-        const fd : number = await tfs.open("/nonexistent_trunc", TRUNCATE | READ_WRITE);
+    test("should fail without O.CREATE on nonexistent file", async () => {
+        const fd : number = await tfs.open("/nonexistent_trunc", O.TRUNCATE | O.READ_WRITE);
         expect(fd).toBe(-1);
     });
 });
 
 describe("APPEND", () => {
     test("should append writes regardless of seek position", async () => {
-        const fd   : number     = await tfs.open("/appendfile", CREATE | READ_WRITE | APPEND);
+        const fd   : number     = await tfs.open("/appendfile", O.CREATE | O.READ_WRITE | O.APPEND);
         const a    : Uint8Array = new Uint8Array([65, 66]);         // "AB"
         const b    : Uint8Array = new Uint8Array([67, 68]);         // "CD"
         const abcd : Uint8Array = new Uint8Array([65, 66, 67, 68]); // "ABCD"
@@ -533,12 +533,12 @@ describe("APPEND", () => {
 
         // Seek back to 0 - write should still go to end.
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const nw_2 : number = await tfs.write(fd, b, 2);
         expect(nw_2).toBe(2);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(4);
         const nr  : number     = await tfs.read(fd, buf, 4);
@@ -552,8 +552,8 @@ describe("APPEND", () => {
 
 describe("multi-fd operations", () => {
     test("two fds to the same file: write via one, read via the other", async () => {
-        const fd_1 : number = await tfs.open("/shared", CREATE | READ_WRITE);
-        const fd_2 : number = await tfs.open("/shared", READ_WRITE);
+        const fd_1 : number = await tfs.open("/shared", O.CREATE | O.READ_WRITE);
+        const fd_2 : number = await tfs.open("/shared", O.READ_WRITE);
 
         const data : Uint8Array = new Uint8Array([10, 20, 30]);
         const nw   : number    = await tfs.write(fd_1, data, 3);
@@ -573,7 +573,7 @@ describe("multi-fd operations", () => {
 
 describe("interleaved operations", () => {
     test("open -> unlink -> close: close succeeds after unlink", async () => {
-        const fd : number = await tfs.open("/unlinkme", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/unlinkme", O.CREATE | O.READ_WRITE);
 
         await tfs.write(fd, new Uint8Array([1, 2, 3]), 3);
 
@@ -583,7 +583,7 @@ describe("interleaved operations", () => {
         // Check inode was deleted, fd is stale, read returns -1.
 
         const buf : Uint8Array = new Uint8Array(3);
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const nr : number = await tfs.read(fd, buf, 3);
         expect(nr).toBe(-1);
@@ -603,13 +603,13 @@ describe("interleaved operations", () => {
 
 describe("block-boundary writes", () => {
     test("should write exactly BLOCK_SIZE bytes", async () => {
-        const fd   : number     = await tfs.open("/exactb", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/exactb", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(tfs.block_size).fill(0xAA);
         const nw   : number     = await tfs.write(fd, data, tfs.block_size);
 
         expect(nw).toBe(tfs.block_size);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(tfs.block_size);
         const nr  : number     = await tfs.read(fd, buf, tfs.block_size);
@@ -621,13 +621,13 @@ describe("block-boundary writes", () => {
     });
 
     test("should write BLOCK_SIZE + 1 bytes (cross one boundary)", async () => {
-        const fd   : number     = await tfs.open("/crossb", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/crossb", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(tfs.block_size + 1).fill(0xBB);
         const nw   : number     = await tfs.write(fd, data, tfs.block_size + 1);
 
         expect(nw).toBe(tfs.block_size + 1);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(tfs.block_size + 1);
         const nr  : number     = await tfs.read(fd, buf, tfs.block_size + 1);
@@ -639,13 +639,13 @@ describe("block-boundary writes", () => {
     });
 
     test("should write 2 * BLOCK_SIZE bytes (two full blocks)", async () => {
-        const fd   : number     = await tfs.open("/twofull", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/twofull", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(tfs.block_size * 2).fill(0xCC);
         const nw   : number     = await tfs.write(fd, data, tfs.block_size * 2);
 
         expect(nw).toBe(tfs.block_size * 2);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(tfs.block_size * 2);
         const nr  : number     = await tfs.read(fd, buf, tfs.block_size * 2);
@@ -659,7 +659,7 @@ describe("block-boundary writes", () => {
 
 describe("hard-link nlink lifecycle", () => {
     test("unlink one link preserves data via the other", async () => {
-        const fd   : number     = await tfs.open("/orig", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/orig", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([10, 20, 30]);
 
         await tfs.write(fd, data, 3);
@@ -673,7 +673,7 @@ describe("hard-link nlink lifecycle", () => {
 
         // Data should still be accessible via /link.
 
-        const fd2  : number     = await tfs.open("/link", READ_WRITE);
+        const fd2  : number     = await tfs.open("/link", O.READ_WRITE);
         const buf  : Uint8Array = new Uint8Array(3);
         const nr   : number     = await tfs.read(fd2, buf, 3);
 
@@ -687,7 +687,7 @@ describe("hard-link nlink lifecycle", () => {
 
     test("unlink all links deletes file", async () =>
     {
-        const fd : number = await tfs.open("/hapath", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/hapath", O.CREATE | O.READ_WRITE);
 
         tfs.close(fd);
 
@@ -712,7 +712,7 @@ describe("hard-link nlink lifecycle", () => {
 
 describe("sparse file", () => {
     test("seek past EOF, write, read back with zero-filled gap", async () => {
-        const fd       : number     = await tfs.open("/sparse", CREATE | READ_WRITE);
+        const fd       : number     = await tfs.open("/sparse", O.CREATE | O.READ_WRITE);
         const gap      : number     = 1000;
         const data     : Uint8Array = new Uint8Array([0xDE, 0xAD]);
         const expected : Uint8Array = new Uint8Array(gap + data.length);
@@ -721,12 +721,12 @@ describe("sparse file", () => {
 
         expected.set(data, gap);
 
-        await tfs.lseek(fd, gap, SET);
+        await tfs.lseek(fd, gap, O.SET);
 
         const nw : number = await tfs.write(fd, data, data.length);
         expect(nw).toBe(data.length);
 
-        await tfs.lseek(fd, 0, SET);
+        await tfs.lseek(fd, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(expected.length);
         const nr  : number     = await tfs.read(fd, buf, expected.length);
@@ -740,8 +740,8 @@ describe("sparse file", () => {
 
 describe("APPEND with two fds", () => {
     test("writes via two append fds both land at end", async () => {
-        const fd_a : number = await tfs.open("/dualapp", CREATE | READ_WRITE | APPEND);
-        const fd_b : number = await tfs.open("/dualapp", READ_WRITE | APPEND);
+        const fd_a : number = await tfs.open("/dualapp", O.CREATE | O.READ_WRITE | O.APPEND);
+        const fd_b : number = await tfs.open("/dualapp", O.READ_WRITE | O.APPEND);
 
         const a  : Uint8Array = new Uint8Array([65]); // "A"
         const b  : Uint8Array = new Uint8Array([66]); // "B"
@@ -753,7 +753,7 @@ describe("APPEND with two fds", () => {
         const nw_b : number = await tfs.write(fd_b, b, 1);
         expect(nw_b).toBe(1);
 
-        await tfs.lseek(fd_a, 0, SET);
+        await tfs.lseek(fd_a, 0, O.SET);
 
         const buf : Uint8Array = new Uint8Array(2);
         const nr  : number     = await tfs.read(fd_a, buf, 2);
@@ -772,7 +772,7 @@ describe("fd slot reuse", () => {
 
         for (let i = 0; i < tfs.max_fd; i++)
         {
-            const fd : number = await tfs.open(`/reuse_${i}`, CREATE | READ_WRITE);
+            const fd : number = await tfs.open(`/reuse_${i}`, O.CREATE | O.READ_WRITE);
             expect(fd).toBeGreaterThanOrEqual(0);
             fds.push(fd);
         }
@@ -783,7 +783,7 @@ describe("fd slot reuse", () => {
 
         // Next open should reuse slot 0.
 
-        const new_fd : number = await tfs.open("/reuse_new", CREATE | READ_WRITE);
+        const new_fd : number = await tfs.open("/reuse_new", O.CREATE | O.READ_WRITE);
         expect(new_fd).toBe(fds[0]!);
 
         for (let i = 1; i < tfs.max_fd; i++)
@@ -795,11 +795,11 @@ describe("fd slot reuse", () => {
 
 describe("read count clamping", () => {
     test("should read fewer bytes than requested when near EOF", async () => {
-        const fd   : number    = await tfs.open("/small", CREATE | READ_WRITE);
+        const fd   : number    = await tfs.open("/small", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([1, 2, 3, 4, 5]);
 
         await tfs.write(fd, data, 5);
-        await tfs.lseek(fd, 3, SET);
+        await tfs.lseek(fd, 3, O.SET);
 
         const buf : Uint8Array = new Uint8Array(10);
         const nr  : number     = await tfs.read(fd, buf, 10);
@@ -839,7 +839,7 @@ describe("readdir", () => {
     });
 
     test("should return -1 for a regular file", async () => {
-        const fd : number = await tfs.open("/rd_filepath", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/rd_filepath", O.CREATE | O.READ_WRITE);
         tfs.close(fd);
 
         const ret = await tfs.readdir("/rd_filepath");
@@ -849,7 +849,7 @@ describe("readdir", () => {
 
 describe("rename", () => {
     test("should rename a file preserving data", async () => {
-        const fd   : number    = await tfs.open("/oldname", CREATE | READ_WRITE);
+        const fd   : number    = await tfs.open("/oldname", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([65, 66, 67]);
 
         await tfs.write(fd, data, 3);
@@ -867,7 +867,7 @@ describe("rename", () => {
 
         // New name has the data.
 
-        const fd2 : number     = await tfs.open("/newname", READ_WRITE);
+        const fd2 : number     = await tfs.open("/newname", O.READ_WRITE);
         const buf : Uint8Array = new Uint8Array(3);
         const nr  : number     = await tfs.read(fd2, buf, 3);
 
@@ -878,13 +878,13 @@ describe("rename", () => {
     });
 
     test("should overwrite existing target", async () => {
-        const fd_a : number     = await tfs.open("/ren_a", CREATE | READ_WRITE);
+        const fd_a : number     = await tfs.open("/ren_a", O.CREATE | O.READ_WRITE);
         const d_a  : Uint8Array = new Uint8Array([1, 2, 3]);
 
         await tfs.write(fd_a, d_a, 3);
         tfs.close(fd_a);
 
-        const fd_b : number     = await tfs.open("/ren_b", CREATE | READ_WRITE);
+        const fd_b : number     = await tfs.open("/ren_b", O.CREATE | O.READ_WRITE);
         const d_b  : Uint8Array = new Uint8Array([4, 5, 6]);
 
         await tfs.write(fd_b, d_b, 3);
@@ -895,7 +895,7 @@ describe("rename", () => {
 
         // CHeck that /ren_b now has /ren_a's data.
 
-        const fd   : number     = await tfs.open("/ren_b", READ_WRITE);
+        const fd   : number     = await tfs.open("/ren_b", O.READ_WRITE);
         const buf  : Uint8Array = new Uint8Array(3);
         const nr   : number     = await tfs.read(fd, buf, 3);
 
@@ -924,7 +924,7 @@ describe("rename", () => {
     });
 
     test("should fail when target parent does not exist", async () => {
-        const fd : number = await tfs.open("/rename_me", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/rename_me", O.CREATE | O.READ_WRITE);
         tfs.close(fd);
 
         const ret : number = await tfs.rename("/rename_me", "/nope/b");
@@ -935,7 +935,7 @@ describe("rename", () => {
 describe("path normalization (URL edge cases)", () => {
     test("fragment (#) in path is preserved, not stripped", async () => {
         // Create a file whose name contains #.
-        const fd : number = await tfs.open("/safe#evil", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/safe#evil", O.CREATE | O.READ_WRITE);
         expect(fd).not.toBe(-1);
         tfs.close(fd);
 
@@ -950,7 +950,7 @@ describe("path normalization (URL edge cases)", () => {
     });
 
     test("query string (?) in path is preserved, not stripped", async () => {
-        const fd : number = await tfs.open("/file?x=1", CREATE | READ_WRITE);
+        const fd : number = await tfs.open("/file?x=1", O.CREATE | O.READ_WRITE);
         expect(fd).not.toBe(-1);
         tfs.close(fd);
 
@@ -978,7 +978,7 @@ describe("export / import", () => {
         const sret     : number  = await restored.stat("/", sb);
 
         expect(sret).toBe(0);
-        expect((sb.mode & TYPE_MASK)).toBe(TYPE_DIR);
+        expect((sb.mode & O.TYPE_MASK)).toBe(O.TYPE_DIR);
 
         restored.shutdown();
     });
@@ -987,7 +987,7 @@ describe("export / import", () => {
         await tfs.mkdir("/export_a");
         await tfs.mkdir("/export_a/b");
 
-        const fd   : number     = await tfs.open("/export_a/f", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/export_a/f", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([1, 2, 3, 4, 5]);
 
         await tfs.write(fd, data, 5);
@@ -1006,13 +1006,13 @@ describe("export / import", () => {
 
         const sret_dir : number = await restored.stat("/export_a", sb);
         expect(sret_dir).toBe(0);
-        expect((sb.mode & TYPE_MASK)).toBe(TYPE_DIR);
+        expect((sb.mode & O.TYPE_MASK)).toBe(O.TYPE_DIR);
 
         const sret_sub : number = await restored.stat("/export_a/b", sb);
         expect(sret_sub).toBe(0);
-        expect((sb.mode & TYPE_MASK)).toBe(TYPE_DIR);
+        expect((sb.mode & O.TYPE_MASK)).toBe(O.TYPE_DIR);
 
-        const fd2 : number     = await restored.open("/export_a/f", READ);
+        const fd2 : number     = await restored.open("/export_a/f", O.READ);
         const buf : Uint8Array = new Uint8Array(5);
         const nr  : number     = await restored.read(fd2, buf, 5);
 
@@ -1029,7 +1029,7 @@ describe("export / import", () => {
     });
 
     test("should export while filesystem is active", async () => {
-        const fd   : number     = await tfs.open("/active_f", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/active_f", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array(100).fill(0xAB);
 
         await tfs.write(fd, data, 100);
@@ -1049,7 +1049,7 @@ describe("export / import", () => {
         // Restored copy has the data.
 
         const restored : TinyFS     = await TinyFS.import("export_active", blob);
-        const fd2      : number     = await restored.open("/active_f", READ);
+        const fd2      : number     = await restored.open("/active_f", O.READ);
         const buf      : Uint8Array = new Uint8Array(100);
         const nr       : number     = await restored.read(fd2, buf, 100);
 
@@ -1062,14 +1062,14 @@ describe("export / import", () => {
 
     test("should export and restore multi-block data", async () => {
         const data : Uint8Array = new Uint8Array(tfs.block_size * 2 + 50).fill(0xCD);
-        const fd   : number     = await tfs.open("/mb_data", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/mb_data", O.CREATE | O.READ_WRITE);
 
         await tfs.write(fd, data, data.length);
         tfs.close(fd);
 
         const blob     : ArrayBuffer = await tfs.export();
         const restored : TinyFS      = await TinyFS.import("export_mb", blob);
-        const fd2      : number      = await restored.open("/mb_data", READ);
+        const fd2      : number      = await restored.open("/mb_data", O.READ);
         const buf      : Uint8Array  = new Uint8Array(data.length);
         const nr       : number      = await restored.read(fd2, buf, data.length);
 
@@ -1081,7 +1081,7 @@ describe("export / import", () => {
     });
 
     test("should export and restore hard links", async () => {
-        const fd   : number     = await tfs.open("/orig", CREATE | READ_WRITE);
+        const fd   : number     = await tfs.open("/orig", O.CREATE | O.READ_WRITE);
         const data : Uint8Array = new Uint8Array([10, 20, 30]);
 
         await tfs.write(fd, data, 3);
@@ -1100,7 +1100,7 @@ describe("export / import", () => {
 
         for (const p of ["/orig", "/link1", "/link2"])
         {
-            const fd2 : number     = await restored.open(p, READ);
+            const fd2 : number     = await restored.open(p, O.READ);
             const buf : Uint8Array = new Uint8Array(3);
             const nr  : number     = await restored.read(fd2, buf, 3);
 
@@ -1115,7 +1115,7 @@ describe("export / import", () => {
 
     test("should overwrite existing database on import", async () => {
         const fs1 : TinyFS = await TinyFS.create("export_overwrite");
-        const fd1 : number = await fs1.open("/old", CREATE | READ_WRITE);
+        const fd1 : number = await fs1.open("/old", O.CREATE | O.READ_WRITE);
 
         await fs1.write(fd1, new Uint8Array([1, 2, 3]), 3);
 

@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
-import { CREATE, READ, READ_WRITE, ROOT_INODE, STORE_BLOCKS, STORE_INODES, TinyFS, TRUNCATE, TYPE_DIR, type StatBuf } from "../src/tinyfs.ts";
+import { O, ROOT_INODE, STORE_BLOCKS, STORE_INODES, TinyFS } from "../src/tinyfs.ts";
+import type { StatBuf } from "../src/tinyfs.ts";
 import { Mulberry32 } from "./fuzzer.ts";
 
 let tfs : TinyFS;
@@ -64,12 +65,12 @@ function formatBytes(bytes : Uint8Array) : string
 //
 //   Opcodes:
 //     0 MKDIR  path
-//     1 CREAT  path                          (open CREATE|READ_WRITE + close)
+//     1 CREAT  path                          (open CREATE|O.READ_WRITE + close)
 //     2 WRITE  path  fill:1  count:1         (write count+1 bytes of fill)
 //     3 READ   path                          (read + verify against shadow)
 //     4 UNLINK path
 //     5 RMDIR  path
-//     6 TRUNC  path                          (open TRUNCATE|READ_WRITE + close)
+//     6 TRUNC  path                          (open TRUNCATE|O.READ_WRITE + close)
 //     7 LINK   path  path2...               (hard link)
 
 function idbReq<T>(
@@ -107,7 +108,7 @@ async function resetFs () : Promise<void>
 
     await idbReq(inodes.put({
         id:      ROOT_INODE as number,
-        mode:    TYPE_DIR | 0o755,
+        mode:    O.TYPE_DIR | 0o755,
         nlink:   1,
         size:    0,
         entries: {}
@@ -173,7 +174,7 @@ async function runSequence (
 
                 case 1:
                 {
-                    const fd : number = await tfs.open(p, CREATE | READ_WRITE);
+                    const fd : number = await tfs.open(p, O.CREATE | O.READ_WRITE);
 
                     if (fd >= 0)
                     {
@@ -194,7 +195,7 @@ async function runSequence (
                     const count : number = Math.min(i < input.length ? input[i]! + 1 : 1, 8192);
                     i += 1;
 
-                    const fd : number = await tfs.open(p, READ_WRITE);
+                    const fd : number = await tfs.open(p, O.READ_WRITE);
 
                     if (fd < 0)
                         break;
@@ -227,7 +228,7 @@ async function runSequence (
                     if (expected === undefined)
                         break;
 
-                    const fd : number = await tfs.open(p, READ);
+                    const fd : number = await tfs.open(p, O.READ);
 
                     if (fd < 0)
                         return `${opName} "${p}": open failed for expected file`;
@@ -260,7 +261,7 @@ async function runSequence (
 
                 case 6:
                 {
-                    const fd : number = await tfs.open(p, TRUNCATE | READ_WRITE);
+                    const fd : number = await tfs.open(p, O.TRUNCATE | O.READ_WRITE);
 
                     if (fd >= 0)
                     {

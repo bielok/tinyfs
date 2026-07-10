@@ -39,7 +39,7 @@ $ npm install @bielok/tinyfs
 ### ESM
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -47,7 +47,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -57,9 +57,9 @@ async function main() {
 ### UMD（ブラウザ）
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
+    const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
@@ -71,13 +71,13 @@ async function main() {
 ### 例
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", CREATE | READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -137,8 +137,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
-    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -162,13 +162,13 @@ if (await tfs.stat("/foo", sb) === 0) {
 
 ```ts
 // 既存のファイルをアトミックに上書き（古い内容を消去）。
-const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 既存のファイルを読み取り専用で開く（存在しない場合は -1）。
-const fd = await tfs.open("/config.json", READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // アトミックに作成——既に存在する場合は失敗。
-const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* 別のインスタンスが既に存在する */ }
 ```
 
@@ -223,14 +223,14 @@ if (n !== data.length)
 
 ```ts
 // 先頭に戻る。
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // 100 バイト先にスキップ（例：ヘッダーを読むため）。
-await tfs.lseek(fd, 100, CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // 追記——終端を越えて最後のバイトまでシーク。次の書き込みで
 // ファイルが拡張され、古いサイズとオフセットの間にスパース領域が生じる。
-const size = await tfs.lseek(fd, 10, END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // 先頭より前にシークしようとすると 0 に丸められる。
 ```
@@ -323,9 +323,9 @@ await tfs.rename("/new_config", "/config");
 ## ビルドとテストの実行
 
 ```bash
-bun run build     # すべての配布物をビルドします。
-bun test          # 単体テストと並行性テストを実行します。
-bun run fuzz      # ランダム操作ファザーを実行します。
+bun run build # すべての配布物をビルドします。
+bun test      # 単体テストと並行性テストを実行します。
+bun run fuzz  # ランダム操作ファザーを実行します。
 ```
 
 ## Benchmarks

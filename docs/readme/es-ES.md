@@ -4,7 +4,7 @@
 ![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
 ![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
 
-*Un sistema de archivos en navegador, probado y construido sobre IndexedDB.*
+*Un sistema de archivos para el navegador, probado y construido sobre IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | **Español** | [Русский](./ru-RU.md)
 
@@ -31,13 +31,13 @@ En TInyFS, cada syscall que modifica estado se ejecuta dentro de una única tran
 ### Instalación
 
 ```bash
-> npm install tinyfs
+$ npm install @bielok/tinyfs
 ```
 
 ### ESM
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 ```
@@ -45,7 +45,7 @@ const tfs = await TinyFS.create("my-database");
 ### CommonJS
 
 ```js
-const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = require("tinyfs");
+const { TinyFS } = require("@bielok/tinyfs");
 
 async function main() {
     const tfs = await TinyFS.create("my-database");
@@ -55,27 +55,27 @@ async function main() {
 ### UMD (navegador)
 
 ```html
-<script src="dist/tinyfs.umd.js"></script>
+<script src="https://unpkg.com/@bielok/tinyfs/dist/tinyfs.umd.js"></script>
 <script>
-    const { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } = window.tinyfs;
+    const { TinyFS } = window.tinyfs;
     const tfs = await TinyFS.create("tinyfs");
 </script>
 ```
 
-## Cómo usar
+## Modo de uso
 
 Todas las rutas son absolutas: deben comenzar con `/`. El directorio raíz es `/`.
 
 ### Ejemplo
 
 ```ts
-import { TinyFS, CREATE, READ_WRITE, SET, CURRENT, END, TRUNCATE, WRITE, READ, EXCLUSIVE, TYPE_MASK, TYPE_DIR, TYPE_FILE } from "tinyfs";
+import { TinyFS, O } from "@bielok/tinyfs";
 
 const tfs = await TinyFS.create("my-database");
 
-const fd = await tfs.open("/foo", CREATE | READ_WRITE);
+const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -85,7 +85,7 @@ tfs.close(fd);
 tfs.shutdown();
 ```
 
-### API Reference
+### Referencia
 
 `TinyFS.create(db_name, opts?)`
 
@@ -135,8 +135,8 @@ Llena `buf` con `{ size, mode, nlink }` para la ruta dada. Devuelve 0 en caso de
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
-    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -160,13 +160,13 @@ Abre o crea un archivo y devuelve un descriptor de archivo. El argumento `flags`
 
 ```ts
 // Sobrescribir un archivo existente de forma atómica (borra el contenido anterior).
-const fd = await tfs.open("/output.bin", TRUNCATE | WRITE);
+const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Abrir un archivo existente para lectura (falla con -1 si no existe).
-const fd = await tfs.open("/config.json", READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // Creación atómica (falla si ya existe).
-const fd = await tfs.open("/lock", CREATE | EXCLUSIVE | READ_WRITE);
+const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
 if (fd < 0) { /* otra instancia ya existe */ }
 ```
 
@@ -221,15 +221,15 @@ Reposiciona el desplazamiento del archivo. `whence` puede ser `SET` (absoluto de
 
 ```ts
 // Volver al principio.
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // Saltar 100 bytes hacia adelante (p. ej., para leer un encabezado).
-await tfs.lseek(fd, 100, CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // Anexar: buscar más allá del final hasta el último byte. La siguiente
 // escritura extiende el archivo, produciendo una región dispersa entre
 // el tamaño anterior y el desplazamiento.
-const size = await tfs.lseek(fd, 10, END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // Intentar buscar antes del inicio se fija a 0.
 ```
@@ -322,9 +322,9 @@ await tfs.rename("/new_config", "/config");
 ## Compilación y ejecución de pruebas
 
 ```bash
-bun run build     # Compila todos los distributivos.
-bun test          # Ejecuta pruebas unitarias y de concurrencia.
-bun run fuzz      # Ejecuta el fuzzer de operaciones aleatorias.
+bun run build # Compila todos los distributivos.
+bun test      # Ejecuta pruebas unitarias y de concurrencia.
+bun run fuzz  # Ejecuta el fuzzer de operaciones aleatorias.
 ```
 
 ## Benchmarks
@@ -376,7 +376,7 @@ throughput benches:  5520 operations, 352.20MB total
 fastest operation:   55.20000000298023 us mean  (stat("/"))
 ```
 
-**NOTE**: Open bench.html to benchmark on other browsers.
+**NOTE**: Abre bench.html para probar el rendimiento en otros navegadores
 
 ## Licencia
 

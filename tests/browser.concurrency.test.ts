@@ -128,8 +128,8 @@ test("cross-tab write/read visibility", async () => {
     // Page A creates a file and writes "ABC".
 
     await evalExpect(page_a!, async () => {
-        const { CREATE, READ_WRITE } = window.tinyfs;
-        const fd = await tfs.open("/con", CREATE | READ_WRITE);
+        const { O } = window.tinyfs;
+        const fd = await tfs.open("/con", O.CREATE | O.READ_WRITE);
         await tfs.write(fd, new Uint8Array([65, 66, 67]), 3);
         tfs.close(fd);
         return null;
@@ -138,8 +138,8 @@ test("cross-tab write/read visibility", async () => {
     // Page B opens and reads -> "ABC".
 
     const fromB = await page_b!.evaluate(async () => {
-        const { READ } = window.tinyfs;
-        const fd  = await tfs.open("/con", READ);
+        const { O } = window.tinyfs;
+        const fd  = await tfs.open("/con", O.READ);
         const buf = new Uint8Array(10);
         const nr  = await tfs.read(fd, buf, 10);
         tfs.close(fd);
@@ -151,9 +151,9 @@ test("cross-tab write/read visibility", async () => {
     // Page B appends "DEF".
 
     await evalExpect(page_b!, async () => {
-        const { READ_WRITE, END } = window.tinyfs;
-        const fd = await tfs.open("/con", READ_WRITE);
-        await tfs.lseek(fd, 0, END);
+        const { O } = window.tinyfs;
+        const fd = await tfs.open("/con", O.READ_WRITE);
+        await tfs.lseek(fd, 0, O.END);
         await tfs.write(fd, new Uint8Array([68, 69, 70]), 3);
         tfs.close(fd);
         return null;
@@ -162,8 +162,8 @@ test("cross-tab write/read visibility", async () => {
     // Page A reopens and reads -> "ABCDEF".
 
     const fromA = await page_a!.evaluate(async () => {
-        const { READ } = window.tinyfs;
-        const fd  = await tfs.open("/con", READ);
+        const { O } = window.tinyfs;
+        const fd  = await tfs.open("/con", O.READ);
         const buf = new Uint8Array(10);
         const nr  = await tfs.read(fd, buf, 10);
         tfs.close(fd);
@@ -195,8 +195,8 @@ test("simultaneous multi-block write produces no torn data", async () =>
     // Create file.
 
     await evalExpect(page_a!, async () => {
-        const { CREATE, READ_WRITE } = window.tinyfs;
-        const fd = await tfs.open("/simul", CREATE | READ_WRITE);
+        const { O } = window.tinyfs;
+        const fd   = await tfs.open("/simul", O.CREATE | O.READ_WRITE);
         tfs.close(fd);
         return null;
     }, "create /simul");
@@ -204,10 +204,10 @@ test("simultaneous multi-block write produces no torn data", async () =>
     // Both pages write 5000 bytes (2 blocks) in parallel.
 
     const [rA, rB] = await Promise.all([
-        page_a!.evaluate(async () => {
-            const { READ_WRITE } = window.tinyfs;
+         page_a!.evaluate(async () => {
+            const { O } = window.tinyfs;
 
-            const fd   = await tfs.open("/simul", READ_WRITE);
+            const fd   = await tfs.open("/simul", O.READ_WRITE);
             const data = new Uint8Array(5000).fill(0x41);
             const nw   = await tfs.write(fd, data, 5000);
 
@@ -215,9 +215,9 @@ test("simultaneous multi-block write produces no torn data", async () =>
             return nw;
         }),
         page_b!.evaluate(async () => {
-            const { READ_WRITE } = window.tinyfs;
+            const { O } = window.tinyfs;
 
-            const fd   = await tfs.open("/simul", READ_WRITE);
+            const fd   = await tfs.open("/simul", O.READ_WRITE);
             const data = new Uint8Array(5000).fill(0x42);
             const nw   = await tfs.write(fd, data, 5000);
 
@@ -232,9 +232,8 @@ test("simultaneous multi-block write produces no torn data", async () =>
     // Read back: every byte must be 0x41 or every byte 0x42.
 
     const bytes = await page_a!.evaluate(async () => {
-        const { READ } = window.tinyfs;
-
-        const fd  = await tfs.open("/simul", READ);
+        const { O } = window.tinyfs;
+        const fd  = await tfs.open("/simul", O.READ);
         const buf = new Uint8Array(5000);
         const nr  = await tfs.read(fd, buf, 5000);
 
@@ -268,8 +267,8 @@ test("stale fd returns -1 after unlink from another tab", async () => {
     // Page A opens /shared, writes data, keeps fd open.
 
     const fd : number = await page_a!.evaluate(async () => {
-        const { CREATE, READ_WRITE } = window.tinyfs;
-        const f = await tfs.open("/shared", CREATE | READ_WRITE);
+        const { O } = window.tinyfs;
+        const f = await tfs.open("/shared", O.CREATE | O.READ_WRITE);
         await tfs.write(f, new Uint8Array([65, 66, 67]), 3);
         return f;
     });
@@ -286,8 +285,8 @@ test("stale fd returns -1 after unlink from another tab", async () => {
     // Page A seeks and reads on stale fd -> -1 (inode gone).
 
     const nr : number = await page_a!.evaluate(async (f : number) => {
-        const { SET } = window.tinyfs;
-        await tfs.lseek(f, 0, SET);
+        const { O } = window.tinyfs;
+        await tfs.lseek(f, 0, O.SET);
         const buf = new Uint8Array(10);
         return await tfs.read(f, buf, 10);
     }, fd);
@@ -346,7 +345,7 @@ test("concurrent mkdir race -- exactly one succeeds", async () => {
     // Verify the directory exists (stat succeeds).
 
     await evalExpect(page_a!, async () => {
-        const { TYPE_MASK, TYPE_DIR } = window.tinyfs;
+        const { O } = window.tinyfs;
 
         const sb  = { size: 0, mode: 0, nlink: 0 };
         const ret = await tfs.stat("/con_race", sb);
@@ -354,7 +353,7 @@ test("concurrent mkdir race -- exactly one succeeds", async () => {
         if (ret !== 0)
             return "stat returned " + ret;
 
-        if ((sb.mode & TYPE_MASK) !== TYPE_DIR)
+        if ((sb.mode & O.TYPE_MASK) !== O.TYPE_DIR)
             return "not a directory";
 
         return null;
@@ -386,8 +385,8 @@ test("fd slot reuse during append write corrupts data", async () => {
     // Set up /orig with 10 000 bytes of 0xAA.
 
     await evalExpect(page_a!, async () => {
-        const { CREATE, READ_WRITE } = window.tinyfs;
-        const fd = await tfs.open("/orig", CREATE | READ_WRITE);
+        const { O } = window.tinyfs;
+        const fd = await tfs.open("/orig", O.CREATE | O.READ_WRITE);
         await tfs.write(fd, new Uint8Array(10000).fill(0xAA), 10000);
         tfs.close(fd);
         return null;
@@ -404,7 +403,7 @@ test("fd slot reuse during append write corrupts data", async () => {
         const suffix : string = iter.toString();
 
         const result : string | null = await page_a!.evaluate(async (s : string) => {
-            const { WRITE, APPEND, CREATE, READ_WRITE, READ } = window.tinyfs;
+            const { O } = window.tinyfs;
 
             // Ensure /orig is at its baseline 10 000 bytes.
             // (Recreate it if a prior iteration left it larger.)
@@ -417,12 +416,12 @@ test("fd slot reuse during append write corrupts data", async () => {
                 // Previous iteration corrupted /orig recreate.
 
                 await tfs.unlink("/orig");
-                const reFd = await tfs.open("/orig", CREATE | READ_WRITE);
+                const reFd = await tfs.open("/orig", O.CREATE | O.READ_WRITE);
                 await tfs.write(reFd, new Uint8Array(10000).fill(0xAA), 10000);
                 tfs.close(reFd);
             }
 
-            const fd = await tfs.open("/orig", APPEND | WRITE);
+            const fd = await tfs.open("/orig", O.APPEND | O.WRITE);
 
             const appendSize = 50000;
             const appendData = new Uint8Array(appendSize);
@@ -432,7 +431,7 @@ test("fd slot reuse during append write corrupts data", async () => {
             const writePromise = tfs.write(fd, appendData, appendSize);
 
             tfs.close(fd);
-            const fd2 = await tfs.open("/other_" + s, CREATE | READ_WRITE);
+            const fd2 = await tfs.open("/other_" + s, O.CREATE | O.READ_WRITE);
             await tfs.write(fd2, new Uint8Array([0xFF]), 1);
 
             await writePromise;
@@ -449,7 +448,7 @@ test("fd slot reuse during append write corrupts data", async () => {
 
             // /other should be intact.
 
-            const otherFd = await tfs.open("/other_" + s, READ);
+            const otherFd = await tfs.open("/other_" + s, O.READ);
             const otherBuf = new Uint8Array(1);
             await tfs.read(otherFd, otherBuf, 1);
             tfs.close(otherFd);
