@@ -1,0 +1,14 @@
+{
+  "name": "example-bun",
+  "private": true,
+  "scripts": {
+    "typecheck": "bunx tsc --noEmit",
+    "build": "bun build --target bun index.ts --outdir dist"
+  },
+  "dependencies": {
+    "@bielok/tinyfs": "file:../../"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

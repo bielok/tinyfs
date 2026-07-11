@@ -1,0 +1,15 @@
+{
+  "name": "example-node-esm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@bielok/tinyfs": "file:../../"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

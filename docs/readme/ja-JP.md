@@ -1,20 +1,19 @@
 <div align="center">
 <br>
-
-![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
-![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
+<h1>bielok's TinyFS</h1>
 
 *IndexedDB 上に構築されたブラウザ内ファイルシステム。*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | **日本語** | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
-
 </div>
 
-**概要**
+---
+
+<h4>概要</h4>
 
 TinyFS のすべての状態変更システムコールは、単一の IndexedDB トランザクション内で実行されます。ブラウザがクラッシュしたり、クォータを超過したり、操作の途中でタブが閉じられた場合、トランザクションは原子的にロールバックします。すべてのブロック書き込みとメタデータ更新が一緒にコミットされるか、まったくコミットされないかのいずれかです。破損した書き込み、宙ぶらりんの inode、サイズがブロックと一致しないファイルは発生しません。
 
-**主な機能**
+<h4>主な機能</h4>
 
 - `stat`、`mkdir`、`rmdir`、`readdir`、`open`、`close`、`read`、`write`、`rename`、`lseek`、`link`、`unlink` をサポート。
 - ランタイム依存関係ゼロ。
@@ -25,6 +24,7 @@ TinyFS のすべての状態変更システムコールは、単一の IndexedDB
 - Puppeteer を使用して Chrome でベンチマーク測定済み。
 - CommonJS、ESM、UMD の配布形態に対応。
 - 純粋な JavaScript と TypeScript の両方のプロジェクトに対応。
+- インストールサイズ < 500 KiB（[中身を確認](https://www.npmjs.com/package/@bielok/tinyfs?activeTab=code)）！
 
 ## はじめに
 

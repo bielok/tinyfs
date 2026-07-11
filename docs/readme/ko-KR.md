@@ -1,20 +1,19 @@
 <div align="center">
 <br>
-
-![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
-![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
+<h1>bielok's TinyFS</h1>
 
 *IndexedDB 기반 브라우저 내 파일 시스템입니다.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | **한국어** | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 </div>
 
+---
 
-**요약**
+<h4>요약</h4>
 
 TinyFS의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 내에서 실행됩니다. 브라우저가 충돌하거나, 할당량을 초과하거나, 작업 중간에 탭이 닫히면 트랜잭션은 원자적으로 롤백됩니다. 모든 블록 쓰기와 메타데이터 업데이트가 함께 커밋되거나, 전혀 커밋되지 않습니다. torn write, 댕글링 inode, 또는 크기가 블록과 일치하지 않는 파일이 발생하지 않습니다.
 
-**주요 기능**
+<h4>주요 기능</h4>
 
 - `stat`, `mkdir`, `rmdir`, `readdir`, `open`, `close`, `read`, `write`, `rename`, `lseek`, `link`, `unlink`를 지원합니다.
 - 런타임 의존성이 전혀 없습니다.
@@ -25,6 +24,7 @@ TinyFS의 모든 상태 변경 시스템 콜은 단일 IndexedDB 트랜잭션 �
 - Puppeteer를 사용하여 Chrome에서 벤치마크를 수행했습니다.
 - CommonJS, ESM 및 UMD 배포판을 제공합니다.
 - 순수 JavaScript 및 TypeScript 프로젝트와 모두 호환됩니다.
+- 설치 크기 < 500 KiB ([내용 확인](https://www.npmjs.com/package/@bielok/tinyfs?activeTab=code))!
 
 ## 시작하기
 
@@ -75,7 +75,7 @@ const tfs = await TinyFS.create("my-database");
 
 const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -135,8 +135,8 @@ await new Promise((res, rej) => {
 const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
-    const is_dir  = (sb.mode & TYPE_MASK) === TYPE_DIR;
-    const is_file = (sb.mode & TYPE_MASK) === TYPE_FILE;
+    const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -163,7 +163,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // 기존 파일을 읽기 전용으로 엽니다(없으면 -1 반환).
-const fd = await tfs.open("/config.json", READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // 원자적으로 생성——이미 있으면 실패.
 const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
@@ -221,14 +221,14 @@ if (n !== data.length)
 
 ```ts
 // 처음으로 되감기.
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // 100바이트 앞으로 건너뛰기(예: 헤더 읽기).
-await tfs.lseek(fd, 100, CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // 추가——끝을 지나 마지막 바이트까지 시크. 다음 쓰기에서
 // 파일이 확장되어 이전 크기와 오프셋 사이에 스파스 영역이 생깁니다.
-const size = await tfs.lseek(fd, 10, END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // 시작보다 앞으로 시크하려고 하면 0으로 고정됩니다.
 ```

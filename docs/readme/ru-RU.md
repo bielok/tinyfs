@@ -1,19 +1,19 @@
 <div align="center">
 <br>
-
-![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
-![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
+<h1>bielok's TinyFS</h1>
 
 *Файловая система в браузере на базе IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | **Русский**
 </div>
 
-**Кратко**
+---
+
+<h4>Кратко</h4>
 
 Каждый системный вызов TinyFS, изменяющий состояние, выполняется в рамках одной транзакции IndexedDB. Если браузер упадёт, закончится квота или вкладка закроется посередине операции, транзакция атомарно откатится: либо все записи блоков и обновление метаданных фиксируются вместе, либо ни одна. Невозможны разорванная запись, потерянный inode или файл, размер которого не соответствует его блокам.
 
-**Примечательные возможности**
+<h4>Примечательные возможности</h4>
 
 - Поддерживает `stat`, `mkdir`, `rmdir`, `readdir`, `open`, `close`, `read`, `write`, `rename`, `lseek`, `link`, `unlink`.
 - Ноль зависимостей времени выполнения.
@@ -24,6 +24,7 @@
 - Тестирование производительности в Chrome с помощью Puppeteer.
 - Доступен в форматах CommonJS, ESM и UMD.
 - Совместим с проектами на чистом JavaScript и TypeScript.
+- Размер установки < 500 KiB ([содержимое](https://www.npmjs.com/package/@bielok/tinyfs?activeTab=code)).
 
 ## Начало работы
 
@@ -74,7 +75,7 @@ const tfs = await TinyFS.create("my-database");
 
 const fd = await tfs.open("/foo", O.CREATE | O.READ_WRITE);
 await tfs.write(fd, new Uint8Array([104, 101, 108, 108, 111]), 5);
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 const buf = new Uint8Array(5);
 await tfs.read(fd, buf, 5);
@@ -135,7 +136,7 @@ const sb = { size: 0, mode: 0, nlink: 0 };
 
 if (await tfs.stat("/foo", sb) === 0) {
     const is_dir  = (sb.mode & O.TYPE_MASK) === O.TYPE_DIR;
-    const is_file = (sb.mode & O.TYPE_MASK) === TYPE_FILE;
+    const is_file = (sb.mode & O.TYPE_MASK) === O.TYPE_FILE;
 
     console.log(sb.size, "bytes", is_dir ? "dir" : "file", sb.nlink, "links");
 }
@@ -162,7 +163,7 @@ if (await tfs.stat("/foo", sb) === 0) {
 const fd = await tfs.open("/output.bin", O.TRUNCATE | O.WRITE);
 
 // Открыть существующий файл для чтения (возвращает -1, если файл отсутствует).
-const fd = await tfs.open("/config.json", READ);
+const fd = await tfs.open("/config.json", O.READ);
 
 // Атомарное создание (завершается ошибкой, если уже существует).
 const fd = await tfs.open("/lock", O.CREATE | O.EXCLUSIVE | O.READ_WRITE);
@@ -220,15 +221,15 @@ if (n !== data.length)
 
 ```ts
 // Перейти в начало.
-await tfs.lseek(fd, 0, SET);
+await tfs.lseek(fd, 0, O.SET);
 
 // Пропустить 100 байт вперёд (например, чтобы прочитать заголовок).
-await tfs.lseek(fd, 100, CURRENT);
+await tfs.lseek(fd, 100, O.CURRENT);
 
 // Добавление: переместиться за конец файла к последнему байту. Следующая
 // запись расширит файл, создав разреженную область между старым
 // размером и новой позицией.
-const size = await tfs.lseek(fd, 10, END);
+const size = await tfs.lseek(fd, 10, O.END);
 
 // Попытка переместиться до начала файла фиксируется на 0.
 ```

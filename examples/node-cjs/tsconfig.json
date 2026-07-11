@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "outDir": "dist",
+    "declaration": false
+  },
+  "include": ["index.ts"],
+  "exclude": ["dist"]
+}

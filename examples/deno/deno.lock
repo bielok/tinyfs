@@ -1,0 +1,22 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@bielok/tinyfs@*": "1.1.0_typescript@5.9.3",
+    "npm:fake-indexeddb@*": "6.2.5"
+  },
+  "npm": {
+    "@bielok/tinyfs@1.1.0_typescript@5.9.3": {
+      "integrity": "sha512-jgnPeUEvAk+QelvupMa8LQuEYQg8SvhEn04IZ75rQ9qHbb8axw3UZmFUjWD8RhbZ4m/ZcYWZBfmrX1gAxYGQVg==",
+      "dependencies": [
+        "typescript"
+      ]
+    },
+    "fake-indexeddb@6.2.5": {
+      "integrity": "sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w=="
+    },
+    "typescript@5.9.3": {
+      "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+      "bin": true
+    }
+  }
+}

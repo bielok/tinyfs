@@ -1,19 +1,19 @@
 <div align="center">
 <br>
-
-![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
-![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
+<h1>bielok's TinyFS</h1>
 
 *一个构建在 IndexedDB 之上的浏览器内文件系统。*
 
 [English](../../README.md) | **简体中文** | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 </div>
 
-**概要**
+---
+
+<h4>概要</h4>
 
 TinyFS 的每一个修改状态的系统调用都在单个 IndexedDB 事务中执行。如果浏览器崩溃、超出配额限制或在操作中途关闭标签页，事务会原子性地回滚：要么所有块写入和元数据更新一起提交，要么全部不提交。不会出现 torn write、悬空 inode 或文件大小与块不匹配的情况。
 
-**主要特性**
+<h4>主要特性</h4>
 
 - 支持 `stat`、`mkdir`、`rmdir`、`readdir`、`open`、`close`、`read`、`write`、`rename`、`lseek`、`link`、`unlink`。
 - 零运行时依赖。
@@ -24,6 +24,8 @@ TinyFS 的每一个修改状态的系统调用都在单个 IndexedDB 事务中�
 - 使用 Puppeteer 在 Chrome 中进行基准测试。
 - 提供 CommonJS、ESM 和 UMD 格式的分发包。
 - 兼容纯 JavaScript 和 TypeScript 项目。
+- 安装体积 < 500 KiB（[查看具体内容](https://www.npmjs.com/package/@bielok/tinyfs?activeTab=code)）！
+
 ## 快速入门
 
 ### 安装

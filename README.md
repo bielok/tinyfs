@@ -1,8 +1,6 @@
 <div align="center">
 <br>
-
-![TinyFS](.github/tinyfs_light.svg#gh-light-mode-only)
-![TinyFS](.github/tinyfs_dark.svg#gh-dark-mode-only)
+<h1>bielok's TinyFS</h1>
 
 ![npm downloads](https://img.shields.io/npm/d18m/@bielok/tinyfs.svg?label=npm%20downloads&color=green)
 ![Made in Buenos Aires](.github/madein.svg)
@@ -14,7 +12,9 @@ English | [简体中文](./docs/readme/zh-CN.md) | [繁體中文](./docs/readme/
 
 > Hey there! This is a bit of an experimental idea, let me know if you find it useful.
 
-**Summary**
+---
+
+<h4>Summary</h4>
 
 Every TInyFS syscall that modifies state executes within a single IndexedDB
 transaction. If the browser crashes, runs out of quota, or the tab is closed
@@ -23,7 +23,7 @@ and the metadata update commit together, or none of them do. There is no path
 to a torn write, a dangling inode, or a file whose size doesn't match its
 blocks.
 
-**Notable Features**
+<h4>Notable Features</h4>
 
 - Supports `stat`, `mkdir` `rmdir`, `readdir`, `open`, `close`, `read`, `write`, `rename`, `lseek`, `link`, `unlink`.
 - Zero runtime dependencies.
@@ -34,6 +34,7 @@ blocks.
 - Benchmarked in Chrome using Puppeteer.
 - CommonJS, ESM and UMD distributables.
 - Compatible with both pure JavaScript and TypeScript projects.
+- < 500 KiB installation [(see what's inside)](https://www.npmjs.com/package/@bielok/tinyfs?activeTab=code)!
 
 
 ## Getting started
