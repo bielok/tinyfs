@@ -1,6 +1,11 @@
 {
+  // Uncomment this line if you intend to use a version published in the last 24hs.
+  // "minimumDependencyAge": 0,
+
   "tasks": {
-    "check": "deno check index.ts",
-    "build": "deno bundle index.ts dist/bundle.js"
+    "build": "mkdir -p dist && deno bundle -o dist/app.js src/main.ts"
+  },
+  "imports": {
+    "@bielok/tinyfs": "npm:@bielok/tinyfs"
   }
 }
