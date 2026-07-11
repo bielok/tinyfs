@@ -1,15 +1,14 @@
 {
-  "name": "example-node-esm",
+  "name": "example-node",
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "esbuild src/main.ts --bundle --outdir=dist --platform=browser --format=esm"
   },
   "dependencies": {
-    "@bielok/tinyfs": "file:../../"
+    "@bielok/tinyfs": "^1.0.0"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "esbuild": "^0.25.0"
   }
 }
