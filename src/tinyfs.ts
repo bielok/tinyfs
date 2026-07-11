@@ -1,5 +1,5 @@
-type int   = number;
-type uint  = number;
+type int  = number;
+type uint = number;
 
 export
 interface INode

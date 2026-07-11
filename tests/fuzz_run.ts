@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { O, ROOT_INODE, STORE_BLOCKS, STORE_INODES, TinyFS } from "../src/tinyfs.ts";
 import type { StatBuf } from "../src/tinyfs.ts";
-import { Mulberry32 } from "./fuzzer.ts";
+import { fuzz } from "./fuzzer.ts";
 
 let tfs : TinyFS;
 
@@ -324,148 +324,6 @@ async function runSequence (
     return null;
 }
 
-// Wrapper for shrink functions that expect a synchronous-ish boolean check
-function wrapCheck (
-    checkFn : (input: Uint8Array) => Promise<string | null>
-) : (input: Uint8Array) => Promise<boolean>
-{
-    return async (input : Uint8Array) => (await checkFn(input)) === null;
-}
-
-async function testFailAsync (
-    bytes   : Uint8Array,
-    checkFn : (b: Uint8Array) => Promise<boolean>
-) : Promise<boolean>
-{
-    return !(await checkFn(bytes));
-}
-
-async function shrinkRemoveChunksAsync (
-    bytes    : Uint8Array,
-    testFail : (candidate: Uint8Array) => Promise<boolean>
-) : Promise<Uint8Array>
-{
-    let arr : number[] = Array.from(bytes);
-    let n   : number   = arr.length;
-    let k   : number   = 2;
-
-    while (n >= 1)
-    {
-        const chunk_size : number = Math.ceil(n / k);
-        let removed      : boolean = false;
-
-        for (let i = 0; i < n; i += chunk_size)
-        {
-            const candidate : number[] = arr.slice(0, i).concat(arr.slice(Math.min(n, i + chunk_size)));
-
-            if (candidate.length === arr.length)
-                continue;
-
-            const candidateU8 : Uint8Array = new Uint8Array(candidate);
-
-            if (await testFail(candidateU8))
-            {
-                arr     = candidate;
-                n       = arr.length;
-                k       = 2;
-                removed = true;
-
-                break;
-            }
-        }
-
-        if (!removed)
-        {
-            if (chunk_size === 1)
-                break;
-
-            k = Math.min(n || 1, k * 2);
-        }
-    }
-
-    return new Uint8Array(arr);
-}
-
-async function shrinkByteValuesAsync (
-    bytes    : Uint8Array,
-    testFail : (candidate: Uint8Array) => Promise<boolean>
-) : Promise<Uint8Array>
-{
-    const data : Uint8Array = new Uint8Array(bytes);
-
-    for (let i = 0; i < data.length; i++)
-    {
-        const original : number = data[i]!;
-
-        if (original === 0)
-            continue;
-
-        data[i] = 0;
-
-        if (await testFail(data))
-            continue;
-
-        data[i] = original;
-
-        let low  : number = 0;
-        let high : number = original;
-
-        while (high - low > 1)
-        {
-            const mid : number = (low + high) >>> 1;
-            data[i]             = mid;
-
-            if (await testFail(data))
-                high = mid;
-            else
-                low = mid;
-        }
-
-        data[i] = high;
-    }
-
-    return data;
-}
-
-async function shrinkCounterexampleAsync(
-    initial_bytes : Uint8Array,
-    checkFn       : (input: Uint8Array) => Promise<boolean>
-) : Promise<Uint8Array>
-{
-    const tF = (candidate : Uint8Array) : Promise<boolean> => testFailAsync(candidate, checkFn);
-
-    if (!(await tF(initial_bytes)))
-        return initial_bytes;
-
-    let current : Uint8Array = new Uint8Array(initial_bytes);
-    let changed : boolean   = true;
-    let rounds  : number    = 0;
-
-    while (changed && rounds < 8)
-    {
-        changed = false;
-        rounds++;
-
-        const afterChunks : Uint8Array = await shrinkRemoveChunksAsync(current, tF);
-
-        if (afterChunks.length < current.length)
-        {
-            current = afterChunks;
-            changed = true;
-        }
-
-        const afterValues : Uint8Array = await shrinkByteValuesAsync(current, tF);
-
-        if (!arraysEqual(afterValues, current))
-        {
-            current = afterValues;
-            changed = true;
-        }
-    }
-
-    return current;
-}
-
 async function decodeTrace(input : Uint8Array) : Promise<string>
 {
     const labels : string[] = ["MKDIR", "CREAT", "WRITE", "READ ", "UNLINK", "RMDIR", "TRUNC", "LINK "];
@@ -563,83 +421,38 @@ async function main() : Promise<void>
     const MAX_LEN : number = 256;
     const TIME_MS : number = 900000;
 
-    let seed : number;
+    let seed : number | string | undefined;
 
     const seed_arg_idx : number = process.argv.indexOf("--seed");
 
     if (seed_arg_idx >= 0 && seed_arg_idx + 1 < process.argv.length)
         seed = parseInt(process.argv[seed_arg_idx + 1]!, 16) >>> 0;
-    else
-        seed = ((Date.now() ^ ((Math.random() * 0x7fffffff) >>> 0)) >>> 0);
 
-    const rng = new Mulberry32(seed);
+    const result = await fuzz(
+        async (input) => (await runSequence(input)) === null,
+        { seed, max_len: MAX_LEN, time_ms: TIME_MS }
+    );
 
-    console.log(`fuzz: seed=0x${seed.toString(16).padStart(8, "0")}  time_ms=${TIME_MS}  max_len=${MAX_LEN}`);
+    console.log(`fuzz: seed=0x${result.seed.toString(16).padStart(8, "0")}  time_ms=${TIME_MS}  max_len=${MAX_LEN}`);
 
-    const start    : number = performance.now();
-    let tests_run  : number = 0;
-
-    while (performance.now() - start < TIME_MS)
+    if (!result.ok)
     {
-        const r : number = rng.next();
+        console.log(`\nFAIL after ${result.num_tests_run} tests in ${result.duration_ms}ms`);
+        console.log(`error: ${result.error}`);
+        console.log(`counterexample (${result.counterex!.length} bytes) : ${formatBytes(result.counterex!)}`);
 
-        let len : number;
+        console.log("\n--- trace ---");
+        process.stdout.write(await decodeTrace(result.counterex!));
 
-        if (MAX_LEN <= 0)
-            len = 0;
-        else if (r < 0.8)
-            len = Math.min(MAX_LEN, Math.floor(rng.next() * Math.min(MAX_LEN + 1, 32)));
-        else
-            len = Math.floor(rng.next() * (MAX_LEN + 1));
+        console.log(`\nshrunk to ${result.shrunk_counterex!.length} bytes: ${formatBytes(result.shrunk_counterex!)}`);
 
-        const buf : Uint8Array = new Uint8Array(len);
+        console.log("\n--- minimal trace ---");
+        process.stdout.write(await decodeTrace(result.shrunk_counterex!));
 
-        const use_pattern : boolean = (len >= 3 && rng.next() < 0.10);
-
-        for (let j = 0; j < len; j++)
-            buf[j] = (rng.next() * 256) | 0;
-
-        if (use_pattern && len >= 3)
-        {
-            const base : number = Math.floor(rng.next() * 253);
-            const pos  : number = Math.floor(rng.next() * (len - 2));
-
-            buf[pos + 0] = base + 0;
-            buf[pos + 1] = base + 1;
-            buf[pos + 2] = base + 2;
-        }
-
-        tests_run++;
-
-        const err : string | null = await runSequence(buf);
-
-        if (err !== null)
-        {
-            const elapsed : number = Math.round(performance.now() - start);
-
-            console.log(`\nFAIL after ${tests_run} tests in ${elapsed}ms`);
-            console.log(`error: ${err}`);
-            console.log(`counterexample (${buf.length} bytes) : ${formatBytes(buf)}`);
-
-            console.log("\n--- trace ---");
-            process.stdout.write(await decodeTrace(buf));
-
-            console.log("\nshrinking...");
-
-            const check_bool : (input: Uint8Array) => Promise<boolean> = wrapCheck(runSequence);
-            const shrunk     : Uint8Array                              = await shrinkCounterexampleAsync(buf, check_bool);
-
-            console.log(`shrunk to ${shrunk.length} bytes: ${formatBytes(shrunk)}`);
-
-            console.log("\n--- minimal trace ---");
-            process.stdout.write(await decodeTrace(shrunk));
-
-            process.exit(1);
-        }
+        process.exit(1);
     }
 
-    const duration : number = Math.round(performance.now() - start);
-    console.log(`\nok -- ${tests_run} tests passed in ${duration}ms`);
+    console.log(`\nok -- ${result.num_tests_run} tests passed in ${result.duration_ms}ms`);
 }
 
 await main();
