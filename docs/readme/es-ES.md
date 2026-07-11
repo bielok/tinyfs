@@ -1,13 +1,10 @@
 <div align="center">
-<br>
 <h1>bielok's TinyFS</h1>
 
 *Un sistema de archivos para el navegador, probado y construido sobre IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | **Español** | [Русский](./ru-RU.md)
 </div>
-
----
 
 <h4>Resumen</h4>
 

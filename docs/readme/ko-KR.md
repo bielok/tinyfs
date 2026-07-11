@@ -1,13 +1,10 @@
 <div align="center">
-<br>
 <h1>bielok's TinyFS</h1>
 
 *IndexedDB 기반 브라우저 내 파일 시스템입니다.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | **한국어** | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 </div>
-
----
 
 <h4>요약</h4>
 

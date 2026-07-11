@@ -1,5 +1,4 @@
 <div align="center">
-<br>
 <h1>bielok's TinyFS</h1>
 
 ![npm downloads](https://img.shields.io/npm/d18m/@bielok/tinyfs.svg?label=npm%20downloads&color=green)
@@ -11,8 +10,6 @@ English | [简体中文](./docs/readme/zh-CN.md) | [繁體中文](./docs/readme/
 </div>
 
 > Hey there! This is a bit of an experimental idea, let me know if you find it useful.
-
----
 
 <h4>Summary</h4>
 

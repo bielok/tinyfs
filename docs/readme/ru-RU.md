@@ -1,13 +1,10 @@
 <div align="center">
-<br>
 <h1>bielok's TinyFS</h1>
 
 *Файловая система в браузере на базе IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | **Русский**
 </div>
-
----
 
 <h4>Кратко</h4>
 

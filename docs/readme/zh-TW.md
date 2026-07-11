@@ -1,13 +1,10 @@
 <div align="center">
-<br>
 <h1>bielok's TinyFS</h1>
 
 *一個基於 IndexedDB 建構的瀏覽器內檔案系統。*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | **繁體中文** | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | [Español](./es-ES.md) | [Русский](./ru-RU.md)
 </div>
-
----
 
 <h4>摘要</h4>
 
