@@ -1,0 +1,14 @@
+{
+  "name": "example-node",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outdir=dist --platform=browser --format=esm"
+  },
+  "dependencies": {
+    "@bielok/tinyfs": "^1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

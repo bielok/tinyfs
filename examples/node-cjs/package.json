@@ -1,0 +1,14 @@
+{
+  "name": "example-node-cjs",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@bielok/tinyfs": "file:../../"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

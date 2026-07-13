@@ -52,6 +52,11 @@ interface FuzzResult
     duration_ms : number;
 
     /**
+     * The resolved seed used for the pseudo-random number generator.
+     */
+    seed : number;
+
+    /**
      * The original, unshrunk counterexample that triggered the failure, if found.
      */
     counterex? : Uint8Array;
@@ -199,15 +204,15 @@ class BufferPool
  * @param outResult - The mutable result object to update.
  */
 
-function runCheckInPlace (
-    check_fn  : (input: Uint8Array) => boolean,
+async function runCheckInPlace (
+    check_fn  : (input: Uint8Array) => boolean | Promise<boolean>,
     input     : Uint8Array,
     outResult : CheckResult
-) : void
+) : Promise<void>
 {
     try
     {
-        const res : boolean = check_fn(input);
+        const res : boolean = await check_fn(input);
 
         if (res === false)
         {
@@ -237,14 +242,14 @@ function runCheckInPlace (
  * @returns A fresh CheckResult object.
  */
 
-function runCheck (
-    check_fn : (input: Uint8Array) => boolean,
+async function runCheck (
+    check_fn : (input: Uint8Array) => boolean | Promise<boolean>,
     input    : Uint8Array
-) : CheckResult
+) : Promise<CheckResult>
 {
     try
     {
-        const res : boolean = check_fn(input);
+        const res : boolean = await check_fn(input);
 
         if (res === false)
             return { ok: false, error: "Returned false" };
@@ -290,10 +295,10 @@ function arraysEqual (
  * @param testFail - Function returning true if a candidate fails.
  * @returns A potentially smaller failing byte array.
  */
-function shrinkRemoveChunks (
+async function shrinkRemoveChunks (
     bytes    : Uint8Array,
-    testFail : (candidate: Uint8Array) => boolean
-) : Uint8Array<ArrayBuffer>
+    testFail : (candidate: Uint8Array) => Promise<boolean>
+) : Promise<Uint8Array<ArrayBuffer>>
 {
     let arr : Array<number> = Array.from(bytes);
     let n   : number        = arr.length;
@@ -312,7 +317,7 @@ function shrinkRemoveChunks (
                 continue;
 
             const candidateU8 = new Uint8Array(candidate);
-            if (testFail(candidateU8))
+            if (await testFail(candidateU8))
             {
                 arr     = candidate;
                 n       = arr.length;
@@ -341,10 +346,10 @@ function shrinkRemoveChunks (
  * @param testFail - Function returning true if a candidate fails.
  * @returns A potentially simplified byte array.
  */
-function shrinkByteValues (
+async function shrinkByteValues (
     bytes    : Uint8Array,
-    testFail : (candidate: Uint8Array) => boolean
-) : Uint8Array<ArrayBuffer>
+    testFail : (candidate: Uint8Array) => Promise<boolean>
+) : Promise<Uint8Array<ArrayBuffer>>
 {
     const data : Uint8Array<ArrayBuffer> = new Uint8Array(bytes);
 
@@ -356,7 +361,7 @@ function shrinkByteValues (
             continue;
 
         data[i] = 0;
-        if (testFail(data))
+        if (await testFail(data))
             continue;
 
         data[i] = original;
@@ -370,7 +375,7 @@ function shrinkByteValues (
 
             data[i] = mid;
 
-            if (testFail(data))
+            if (await testFail(data))
                 high = mid;
             else
                 low = mid;
@@ -388,16 +393,16 @@ function shrinkByteValues (
  * @param check_fn - The user-provided property check.
  * @returns The minimized counterexample.
  */
-function shrinkCounterexample(
+async function shrinkCounterexample(
     initial_bytes : Uint8Array,
-    check_fn      : (input: Uint8Array) => boolean
-) : Uint8Array
+    check_fn      : (input: Uint8Array) => boolean | Promise<boolean>
+) : Promise<Uint8Array>
 {
-    const testFail = (candidate: Uint8Array) : boolean => {
-        return !runCheck(check_fn, candidate).ok;
+    const testFail = async (candidate: Uint8Array) : Promise<boolean> => {
+        return !(await runCheck(check_fn, candidate)).ok;
     };
 
-    if (!testFail(initial_bytes))
+    if (!(await testFail(initial_bytes)))
         return initial_bytes;
 
     let current : Uint8Array = new Uint8Array(initial_bytes);
@@ -409,14 +414,14 @@ function shrinkCounterexample(
         changed = false;
         rounds++;
 
-        const afterChunks = shrinkRemoveChunks(current, testFail);
+        const afterChunks = await shrinkRemoveChunks(current, testFail);
         if (afterChunks.length < current.length)
         {
             current = afterChunks;
             changed = true;
         }
 
-        const afterValues = shrinkByteValues(current, testFail);
+        const afterValues = await shrinkByteValues(current, testFail);
         if (!arraysEqual(afterValues, current))
         {
             current = afterValues;
@@ -456,13 +461,13 @@ function now () : number
  * @returns A FuzzResult detailing the run status, total tests, and counterexamples.
  */
 
-export function fuzz (
-    check_fn : (input: Uint8Array) => boolean,
+export async function fuzz (
+    check_fn : (input: Uint8Array) => boolean | Promise<boolean>,
     options  : FuzzerOptions = DEFAULT_OPTIONS
-) : FuzzResult
+) : Promise<FuzzResult>
 {
     const max_len   = options.max_len !== undefined ? options.max_len : 256;
-    const num_tests = options.num_tests !== undefined ? options.num_tests : 10000;
+    const max_tests = options.num_tests !== undefined ? options.num_tests : Infinity;
     const time_ms   = options.time_ms !== undefined ? options.time_ms : 5000;
 
     let resolvedSeed = 0;
@@ -490,7 +495,7 @@ export function fuzz (
     let counterex : Uint8Array | undefined = undefined;
     let errmsg    : string     | undefined = undefined;
 
-    for (let i = 0; i < num_tests; i++)
+    for (let i = 0; i < max_tests; i++)
     {
         if (time_ms > 0 && (now() - start_time) > time_ms)
             break;
@@ -515,7 +520,7 @@ export function fuzz (
             for (let j = 0; j < len; j++)
                 buf[j] = (rng.next() * 256) | 0;
 
-            buf[pos + 9] = base + 0;
+            buf[pos + 0] = base + 0;
             buf[pos + 1] = base + 1;
             buf[pos + 2] = base + 2;
         }
@@ -526,7 +531,7 @@ export function fuzz (
         }
 
         test_run++;
-        runCheckInPlace(check_fn, buf, result_holder);
+        await runCheckInPlace(check_fn, buf, result_holder);
 
         if (result_holder.ok === false)
         {
@@ -542,11 +547,12 @@ export function fuzz (
 
     if (counterex !== undefined)
     {
-        const shrunk = shrinkCounterexample(counterex, check_fn);
+        const shrunk = await shrinkCounterexample(counterex, check_fn);
         return {
             ok: false,
             num_tests_run: test_run,
             duration_ms: duration_ms,
+            seed: resolvedSeed,
             counterex: counterex,
             shrunk_counterex: shrunk,
             error: errmsg
@@ -556,6 +562,7 @@ export function fuzz (
     return {
         ok: true,
         num_tests_run: test_run,
-        duration_ms: duration_ms
+        duration_ms: duration_ms,
+        seed: resolvedSeed
     };
 }

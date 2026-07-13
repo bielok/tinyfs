@@ -1,20 +1,16 @@
 <div align="center">
-<br>
-
-![TinyFS](../../.github/tinyfs_light.svg#gh-light-mode-only)
-![TinyFS](../../.github/tinyfs_dark.svg#gh-dark-mode-only)
+<h1>bielok's TinyFS</h1>
 
 *Un sistema de archivos para el navegador, probado y construido sobre IndexedDB.*
 
 [English](../../README.md) | [简体中文](./zh-CN.md) | [繁體中文](./zh-TW.md) | [日本語](./ja-JP.md) | [한국어](./ko-KR.md) | **Español** | [Русский](./ru-RU.md)
-
 </div>
 
-**Resumen**
+<h4>Resumen</h4>
 
 En TInyFS, cada syscall que modifica estado se ejecuta dentro de una única transacción de IndexedDB. Si el navegador se bloquea, se supera la cuota o la pestaña se cierra a mitad de la operación, la transacción se revierte atómicamente. O bien la escritura de todos los bloques y la respectiva actualización de metadata se confirman juntas, o no se confirma ninguna. No existe la posibilidad de una escritura incompleta, un inode huérfano o un archivo cuyo tamaño no coincida con sus bloques.
 
-**Características destacadas**
+<h4>Características destacadas</h4>
 
 - Soporta `stat`, `mkdir`, `rmdir`, `readdir`, `open`, `close`, `read`, `write`, `rename`, `lseek`, `link`, `unlink`.
 - Cero dependencias en tiempo de ejecución.
@@ -25,6 +21,7 @@ En TInyFS, cada syscall que modifica estado se ejecuta dentro de una única tran
 - Pruebas de bench en Chrome usando Puppeteer.
 - Disponible en CommonJS, ESM y UMD.
 - Compatible con proyectos tanto de JavaScript puro como de TypeScript.
+- Tamaño de instalación < 500 KiB ([ver contenido](https://www.npmjs.com/package/@bielok/tinyfs?activeTab=code)).
 
 ## Primeros pasos
 
